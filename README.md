@@ -1,6 +1,27 @@
 Sleep Prediction
 ================
 
+<!-- To commit and then push all local file changes to the github repository: -->
+<!-- 1) Open up Git Bash -->
+<!-- 2) Change directory to "C:/Users/Ian/Dropbox/SleepScreenOnOff/SleepEstimation" -->
+<!-- 3) git add . -->
+<!-- 4) git commit -m "Commit name here" -->
+<!-- 5) git push origin master -->
+Create example screen on/off dataset
+------------------------------------
+
+<details><summary>CLICK ME</summary>
+<p>
+#### yes, even hidden code blocks!
+
+    print("hello world!")
+
+</p>
+</details>
+
+Next
+----
+
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code.
 
 Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*.

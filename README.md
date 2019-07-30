@@ -15,7 +15,7 @@ print(1)
 plot(cars)
 ```
 
-![](SleepPrediction_files/figure-markdown_github/unnamed-chunk-1-1.png)
+![](README_files/figure-markdown_github/unnamed-chunk-1-1.png)
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
 

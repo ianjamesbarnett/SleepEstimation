@@ -25,6 +25,7 @@ sd_s = .5
 sd_w = .25
 init_t = 15
 anchor_t=14
+d0="3/2/2019" ## d0 is the first day of follow-up. If you have your own data, set d0 equal to the date of first data.
 
 #2pm = origin
 A2B_ts = function(xx,anchor_hr=14){
@@ -46,16 +47,13 @@ A2B_ts = function(xx,anchor_hr=14){
   }
 }
 
-
 ## generate time to bed/wake for each day
 t_s = rnorm(ndays,mu_s,sd_s)
 t_w = rnorm(ndays,mu_w,sd_w)
 
-
 ## generate waiting times
 curt = init_t
 curday=1
-awake=TRUE
 outmat_mod=c()
 while(TRUE){
   if(curt>init_t+24){
@@ -67,9 +65,15 @@ while(TRUE){
   }
   if(A2B_ts(curt)<A2B_ts(t_s[curday])){
     tnex = curt+rexp(1,lambda_w)
+    if(A2B_ts(tnex)>=A2B_ts(t_s[curday])){
+      tnex = curt+A2B_ts(t_s[curday])-A2B_ts(curt)+rexp(1,lambda_s)
+    }
     outmat_mod=rbind(outmat_mod,c(curt,tnex,curday))
   }else if(A2B_ts(curt)<A2B_ts(t_w[curday])){
     tnex = curt+rexp(1,lambda_s)
+    if(A2B_ts(tnex)>=A2B_ts(t_w[curday])){
+      tnex = curt+A2B_ts(t_w[curday])-A2B_ts(curt)+rexp(1,lambda_w)
+    }
     outmat_mod=rbind(outmat_mod,c(curt,tnex,curday))
   }else{
     tnex = curt+rexp(1,lambda_w)
@@ -103,43 +107,43 @@ Orig2Mod = function(tmat,anchor_hr,format="%m/%d/%Y %H:%M:%S",tz="EST"){
   return(tmat_out)
 }
 
-outmat_orig=Mod2Orig(outmat_mod,d0="3/2/2019",format="%m/%d/%Y %H:%M:%S") #d0 tells Mod2Orig when the first day of follow-up is.
+outmat_orig=Mod2Orig(outmat_mod,d0,format="%m/%d/%Y %H:%M:%S") #d0 tells Mod2Orig when the first day of follow-up is.
 compare_to_outmat_mod=Orig2Mod(outmat_orig,anchor_hr=anchor_t)
 
 head(outmat_orig)
 ```
 
     ##                    t0                  t1
-    ## 1 03/03/2019 15:00:00 03/03/2019 15:19:35
-    ## 2 03/03/2019 15:19:35 03/03/2019 15:31:51
-    ## 3 03/03/2019 15:31:51 03/03/2019 15:35:28
-    ## 4 03/03/2019 15:35:28 03/03/2019 15:39:37
-    ## 5 03/03/2019 15:39:37 03/03/2019 16:24:16
-    ## 6 03/03/2019 16:24:16 03/03/2019 16:27:33
+    ## 1 03/03/2019 15:00:00 03/03/2019 15:25:21
+    ## 2 03/03/2019 15:25:21 03/03/2019 15:35:31
+    ## 3 03/03/2019 15:35:31 03/03/2019 15:51:00
+    ## 4 03/03/2019 15:51:00 03/03/2019 15:58:22
+    ## 5 03/03/2019 15:58:22 03/03/2019 16:08:37
+    ## 6 03/03/2019 16:08:37 03/03/2019 16:18:05
 
 ``` r
 head(outmat_mod)
 ```
 
     ##          [,1]     [,2] [,3]
-    ## [1,] 15.00000 15.32656    1
-    ## [2,] 15.32656 15.53104    1
-    ## [3,] 15.53104 15.59139    1
-    ## [4,] 15.59139 15.66050    1
-    ## [5,] 15.66050 16.40446    1
-    ## [6,] 16.40446 16.45939    1
+    ## [1,] 15.00000 15.42259    1
+    ## [2,] 15.42259 15.59202    1
+    ## [3,] 15.59202 15.85015    1
+    ## [4,] 15.85015 15.97283    1
+    ## [5,] 15.97283 16.14377    1
+    ## [6,] 16.14377 16.30146    1
 
 ``` r
 head(compare_to_outmat_mod)
 ```
 
     ##          [,1]     [,2] [,3]
-    ## [1,] 15.00000 15.32639    1
-    ## [2,] 15.32639 15.53083    1
-    ## [3,] 15.53083 15.59111    1
-    ## [4,] 15.59111 15.66028    1
-    ## [5,] 15.66028 16.40444    1
-    ## [6,] 16.40444 16.45917    1
+    ## [1,] 15.00000 15.42250    1
+    ## [2,] 15.42250 15.59194    1
+    ## [3,] 15.59194 15.85000    1
+    ## [4,] 15.85000 15.97278    1
+    ## [5,] 15.97278 16.14361    1
+    ## [6,] 16.14361 16.30139    1
 
 </p>
 </details>
@@ -264,7 +268,7 @@ IndLik = function(t_init,wt,xs,xw,lambda_s,lambda_w){
 
 JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,INCL_DENSITY=FALSE){
   if(x_s>x_w){return(0)}
-  if(nrow(mat)>0){
+  if(!is.null(nrow(mat)) && nrow(mat)>0){
     t1=1
     for(i in 1:nrow(mat)){
       t1=t1*IndLik(mat[i,1],mat[i,2]-mat[i,1],x_s,x_w,lambda_s,lambda_w)
@@ -282,6 +286,7 @@ JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,
 
 MargLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w){
   if( mu_s> mu_w || sigma_s<0 || sigma_w<0 || abs(rho)>1 || lambda_s<0 || lambda_w <0 || lambda_s > lambda_w){return(0)}
+  if(is.null(nrow(mat)) || nrow(mat)==0){return(1)}
   Sigma=matrix(c(sigma_s^2,rho*sigma_s*sigma_w,rho*sigma_s*sigma_w,sigma_w^2),nrow=2,byrow=T)
   ghout=mgauss.hermite(10,c(mu_s,mu_w),Sigma)
   return(sum(ghout$weights*unlist(lapply(1:nrow(ghout$points),function(xx) JointLik(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,ghout$points[xx,1],ghout$points[xx,2])))))
@@ -321,7 +326,6 @@ GridSearchInitPars = function(mat_mod,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_
   g=function(par_v){
     liktot=0
     for(i in 1:length(labels)){
-      cat(i)
       mat=mat_mod[ls_ids[[i]],1:2]
       liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],par_v[3],par_v[4],par_v[5],par_v[6],par_v[7]))
     }
@@ -397,9 +401,12 @@ mle.out=FindParamMLEs(outmat_mod,anchor_t)
 ```
 
     ## Identifying good initial model parameters...
-    ## 123456789101234567891012345678910123456789101234567891012345678910123456789101234567891012345678910123456789101234567891012345678910123456789101234567891012345678910123456789101234567891012345678910123456789101234567891012345678910123456789101234567891012345678910123456789101234567891012345678910123456789101234567891012345678910123456789101234567891012345678910123456789101234567891012345678910Numerical optimization (using optim) until convergence (maxiter= 20 ):
-    ## Iter  1 : mu_s = 25.43577 ; mu_w = 32.374 ; sd_s = 0.9999978 ; sd_w = 1.000006 ; rho = 0.7500214 ; lambda_s = 1.682636 ; lambda_w = 4.798213 
-    ## Iter  2 : mu_s = 25.43577 ; mu_w = 32.37397 ; sd_s = 0.999885 ; sd_w = 1.00029 ; rho = 0.752226 ; lambda_s = 1.682643 ; lambda_w = 4.798195
+    ## Numerical optimization (using optim) until convergence (maxiter= 20 ):
+    ## Iter  1 : mu_s = 24.41398 ; mu_w = 32.05845 ; sd_s = 0.9851239 ; sd_w = 0.9906677 ; rho = 0.8383384 ; lambda_s = 1.532089 ; lambda_w = 4.817348 
+    ## Iter  2 : mu_s = 24.42011 ; mu_w = 32.03772 ; sd_s = 0.9861941 ; sd_w = 0.9995605 ; rho = 0.8474101 ; lambda_s = 1.474832 ; lambda_w = 4.819268 
+    ## Iter  3 : mu_s = 24.41578 ; mu_w = 32.05644 ; sd_s = 0.9854078 ; sd_w = 1.005007 ; rho = 0.849497 ; lambda_s = 1.471055 ; lambda_w = 4.820763 
+    ## Iter  4 : mu_s = 24.41607 ; mu_w = 32.05316 ; sd_s = 0.9853513 ; sd_w = 1.013361 ; rho = 0.852144 ; lambda_s = 1.465403 ; lambda_w = 4.817352 
+    ## Iter  5 : mu_s = 24.41607 ; mu_w = 32.05056 ; sd_s = 0.985107 ; sd_w = 1.015117 ; rho = 0.8528796 ; lambda_s = 1.464907 ; lambda_w = 4.817461
 
 </p>
 </details>
@@ -424,12 +431,69 @@ if(wake_t_m<10){
 cat(paste(" Avg. time to sleep = ",sleep_t," (+/- ",round(mle.out[3],1)," hour)\n",sep="")
 ,(paste("Avg. time to wake  = ",wake_t," (+/- ",round(mle.out[4],1)," hour)\n",sep=""))
 ,(paste("Correlation between time to sleep and time to wake = ",round(mle.out[5],2),"\n",sep=""))
-,(paste("Rate (per hour) of frequency of phone use while asleep =", round(mle.out[6],5),"\n",sep=""))
-,(paste("Rate (per hour) of frequency of phone use while awake =", round(mle.out[7],5),"\n",sep="")))
+,(paste("Rate (per hour) of frequency of phone use while asleep = ", round(mle.out[6],5),"\n",sep=""))
+,(paste("Rate (per hour) of frequency of phone use while awake = ", round(mle.out[7],5),"\n",sep="")))
 ```
 
-    ##  Avg. time to sleep = 1:26 (+/- 1 hour)
-    ##  Avg. time to wake  = 8:22 (+/- 1 hour)
-    ##  Correlation between time to sleep and time to wake = 0.75
-    ##  Rate (per hour) of frequency of phone use while asleep =1.68264
-    ##  Rate (per hour) of frequency of phone use while awake =4.7982
+    ##  Avg. time to sleep = 0:24 (+/- 1 hour)
+    ##  Avg. time to wake  = 8:03 (+/- 1 hour)
+    ##  Correlation between time to sleep and time to wake = 0.85
+    ##  Rate (per hour) of frequency of phone use while asleep = 1.46491
+    ##  Rate (per hour) of frequency of phone use while awake = 4.81746
+
+### Estimating bed times and wake up times for each day
+
+Now that the model parameters have been estimated, we can maximize the joint density function of a) the bed times (*x\_s*), b) the wake-up times (*x\_w*), and c) the screen on/off data, with respect to the *x\_s* and *x\_w*. These will be our bed time and wake-up time estimates for each individual night. The rationale for maximizing the joint likelihood is that the distribution of the *x\_s* and *x\_w* will pull estimates towards *mu\_s* and *mu\_w*, respectively, while the distribution of the screen on/off data will pull bedtime and wake-up estimates towards the data fit. This way if there is very little data, then bedtime and wake-up estimates will be close to *mu\_s* and *mu\_w*, while more data will allow us to trust the data more and estimates will reflect that. This balance is ideal for situations where sparse data may be present.
+
+The R function to find these estimates are here:
+
+<details><summary>R Code</summary>
+<p>
+``` r
+GetIndSleepEstimates =function(mat_mod,mle.out){
+  labels=unique(mat_mod[,3])
+  ls_ids = list()
+  for(i in 1:length(labels)){
+    ls_ids[[i]]=which(mat_mod[,3]==i)
+  }
+  xmat = matrix(NA,nrow=length(labels),ncol=3)
+  for(i in 1:length(labels)){
+    mat=mat_mod[ls_ids[[i]],1:2]
+    g3=function(par_v){
+      return(-log(JointLik(mat,mle.out[1],mle.out[2],mle.out[3],mle.out[4],mle.out[5],mle.out[6],mle.out[7],par_v[1],par_v[2],INCL_DENSITY=TRUE)))
+    }
+    optim.out3=optim(par=mle.out[1:2],g3,control=list(maxit=1000))
+    xmat[i,]=c(optim.out3$par,labels[i])
+  }
+  return(xmat)
+}
+```
+
+</p>
+</details>
+
+Let's run this function on our simulated data (*mat\_mod*) using the parameter MLEs (*mle.out*) we just estimated as input.
+
+``` r
+xest=GetIndSleepEstimates(outmat_mod,mle.out)
+```
+
+*xest* contains each day's estimated bedtimes and wake-up times. Let's convert back to the original time scale using the Mod2Orig() function we defined before.
+
+``` r
+xest_orig=Mod2Orig(xest,d0,format="%m/%d/%Y %H:%M:%S")
+names(xest_orig)=c("bedtime","wake-up time")
+xest_orig
+```
+
+    ##                bedtime        wake-up time
+    ## 1  03/04/2019 00:35:28 03/04/2019 08:09:05
+    ## 2  03/05/2019 01:24:20 03/05/2019 08:47:23
+    ## 3  03/06/2019 00:04:17 03/06/2019 07:24:09
+    ## 4  03/07/2019 00:14:04 03/07/2019 07:45:52
+    ## 5  03/08/2019 00:57:21 03/08/2019 08:17:46
+    ## 6  03/09/2019 01:12:58 03/09/2019 09:12:18
+    ## 7  03/10/2019 00:53:30 03/10/2019 08:36:16
+    ## 8  03/11/2019 00:29:16 03/11/2019 08:08:24
+    ## 9  03/11/2019 23:56:33 03/12/2019 07:28:11
+    ## 10 03/13/2019 00:51:54 03/13/2019 08:23:23

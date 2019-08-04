@@ -446,7 +446,7 @@ GetIndSleepEstimates =function(mat_mod,mle.out){
 
 Let's run this function on our simulated data (*mat_mod*) using the parameter MLEs (*mle.out*) we just estimated as input.
 ```{r}
-xest=GetIndSleepEstimates(mat_mod,mle.out)
+xest=GetIndSleepEstimates(outmat_mod,mle.out)
 ```
 
 *xest* contains each day's estimated bedtimes and wake-up times. Let's convert back to the original time scale using the Mod2Orig() function we defined before.

@@ -23,8 +23,6 @@ The following code generates some example screen on/off data for *ndays=10* days
 The generated data is stored in the outmat matrix. This matrix has three columns, column 1 is the starting time (in hours) of the screen off interval, column 2 is the ending time (in hours) of the screen off interval, with column 3 corresponding to the day of follow-up. Note that starting times (Column 1) are on the interval *[anchor_t,anchor_t+24]* rather than *[0,24]*. To see the screen off intervals (*outmat_mod*) in time-date format where *d0* is the variable representing the first day of followup, see the *outmat_orig* matrix. The *Mod2Orig()* and *Orig2Mod()* functions convert back and forth between these two data formats (the formats represented by *outmat_mod* and *outmat_orig*).
 
 
-<details><summary>R Code</summary>
-<p>
 
 ```{r}
 ndays=10
@@ -126,8 +124,8 @@ head(outmat_mod)
 head(compare_to_outmat_mod)
 
 ```
-</p>
-</details>
+
+
 
 To see what the resulting data looks like:
 ```{r}
@@ -142,8 +140,7 @@ Notice how there are fewer screen on events During the nighttime hours, as expec
 The time to bed *x_s* and time to wake *x_w* is unknown for each night of follow-up. In this approach, we treat *(x_s,x_w)* as a bivariate normal random variable with mean *(mu_s,mu_w)* with *cor(x_s,x_w)=rho* and marginal variances *(sigma_s^2,sigma_w^2)*. To calculate the marginal likelihood we integrate over the conditional likelihood with respect to  *(x_s,x_w)* for each night in follow up. Because this is a Gaussian integral it can be done efficiently using Guassian quadrature, more specifically  Gauss-Hermite quadrature. The code for this is here:
 
 
-<details><summary>R Code</summary>
-<p>
+
 
 ```{r}
 ## perform quadrature of multivariate normal
@@ -227,14 +224,12 @@ mgauss.hermite <- function(n, mu, sigma, prune=NULL) {
 }
 
 ```
-</p>
-</details>
+
 
 
 ### Estimating model parameters
 
-<details><summary>R Code</summary>
-<p>
+Next, we write the likelihood function and use Hermite-Gauss quadrature to perform numerical integration over the unknown bedtimes and wake-up times (*x_s* and *x_w*). We do a grid search over some of the parameter space (*rho*, *sigma_s*, and *sigma_w*) to pick an initial value for the numerical optimization of the likelihood, but we make smarter data-based guesses as initial values for the remaing parameters (*mu_s*, *mu_w*, *lambda_s*, and *lambda_w*).
 
 ```{r}
 
@@ -386,8 +381,6 @@ FindParamMLEs = function(dat,anchor_t,maxiter=20,init_par=NULL,tol=.0001){
 mle.out=FindParamMLEs(outmat_mod,anchor_t)
 
 ```
-</p>
-</details>
 
 The maximum likelihood estimates and the interpretations of the model parameters are:
 
@@ -419,9 +412,10 @@ Now that the model parameters have been estimated, we can maximize the joint den
 
 The R function to find these estimates are here:
 
-<details><summary>R Code</summary>
-<p>
+
+
 ```{r}
+
 GetIndSleepEstimates =function(mat_mod,mle.out){
   labels=unique(mat_mod[,3])
   ls_ids = list()
@@ -441,10 +435,9 @@ GetIndSleepEstimates =function(mat_mod,mle.out){
 }
 
 ```
-</p>
-</details>
 
-Let's run this function on our simulated data (*mat_mod*) using the parameter MLEs (*mle.out*) we just estimated as input.
+
+Let's run this function on our simulated data (*outmat_mod*) using the parameter MLEs (*mle.out*) we just estimated as input.
 ```{r}
 xest=GetIndSleepEstimates(outmat_mod,mle.out)
 ```

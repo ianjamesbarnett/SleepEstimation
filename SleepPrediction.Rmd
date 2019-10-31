@@ -233,45 +233,143 @@ Next, we write the likelihood function and use Hermite-Gauss quadrature to perfo
 
 ```{r}
 
-IndLik = function(t_init,wt,xs,xw,lambda_s,lambda_w){
-  if(t_init< xs){
-    numer = lambda_w*exp(-lambda_w*wt)
-    denom = 1-exp(-lambda_w*(xs-t_init))+exp(-lambda_s*(xs-t_init))-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))
-  }else if(t_init < xw){
-    numer = lambda_s*exp(-lambda_s*wt)
-    denom = 1-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))
-  }else{
-    numer = lambda_w*exp(-lambda_w*wt)
-    denom = 1
-  }
-  return(numer/denom)
-}
+# IndLik2 = function(t_init,wt,xs,xw,lambda_s,lambda_w){
+#   if(t_init< xs){
+#     numer = lambda_w*exp(-lambda_w*wt)
+#     denom = 1-exp(-lambda_w*(xs-t_init))+exp(-lambda_s*(xs-t_init))-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))
+#   }else if(t_init < xw){
+#     numer = lambda_s*exp(-lambda_s*wt)
+#     denom = 1-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))
+#   }else{
+#     numer = lambda_w*exp(-lambda_w*wt)
+#     denom = 1
+#   }
+#   return(numer/denom)
+# }
 
-JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,INCL_DENSITY=FALSE){
-  if(x_s>x_w){return(0)}
-  if(!is.null(nrow(mat)) && nrow(mat)>0){
-    t1=1
-    for(i in 1:nrow(mat)){
-      t1=t1*IndLik(mat[i,1],mat[i,2]-mat[i,1],x_s,x_w,lambda_s,lambda_w)
+IndLik = function(t_init,wt,xs,xw,lambda_s,lambda_w,mu_s,mu_w){
+  if(t_init+wt>mu_s+24){ # return pr(t_init+wt>mu_s+24) instead of density
+    if(t_init<xs){
+      denom=1-exp(-lambda_w*(xs-t_init))+exp(-lambda_s*(xs-t_init))-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+      numer=(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+      return(numer/denom)
+    }else if(t_init<xw){
+      denom=1-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+      numer=(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+      return(numer/denom)
+    }else{
+      denom=1-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+      numer=(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+      return(numer/denom)
+    }
+  }
+  if(t_init<xs){
+    denom=1-exp(-lambda_w*(xs-t_init))+exp(-lambda_s*(xs-t_init))-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+    if(t_init+wt<xs){
+      return(lambda_w*exp(-lambda_w*(wt))/denom)
+    }else if(t_init+wt<xw){
+      return(lambda_s*exp(-lambda_w*(xs-t_init)-lambda_s*(t_init+wt-xs))/denom)
+    }else{
+      return(lambda_w*exp(-lambda_w*(xs-t_init)-lambda_s*(xw-xs)-lambda_w*(t_init+wt-xw))/denom)
+    }
+  }else if(t_init<xw){
+    denom=1-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+    if(t_init+wt<xw){
+      return(lambda_s*exp(-lambda_s*(wt))/denom)
+    }else{
+      return(lambda_w*exp(-lambda_s*(xw-t_init)-lambda_w*(t_init+wt-xw))/denom)    
     }
   }else{
-    t1=1
+    denom=1-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+    return(lambda_w*exp(-lambda_w*(wt))/denom)
   }
-  if(INCL_DENSITY){
-    t2=dmvnorm(c(x_s,x_w),mean = c(mu_s,mu_w), sigma= matrix(c(sigma_s^2,rho*sigma_s*sigma_w,rho*sigma_s*sigma_w,sigma_w^2),nrow=2,byrow=T))
-  }else{
-    t2=1
-  }
-  return(t1*t2)
 }
 
-MargLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w){
-  if( mu_s> mu_w || sigma_s<0 || sigma_w<0 || abs(rho)>1 || lambda_s<0 || lambda_w <0 || lambda_s > lambda_w){return(0)}
-  if(is.null(nrow(mat)) || nrow(mat)==0){return(1)}
+# IndLik = function(t_init,wt,xs,xw,lambda_s,lambda_w){
+#   if(t_init<xs && xw<t_init+wt){# case 1: t_init<xs and xw<t_init+wt
+#     return(lambda_w*exp(-lambda_w*(xs-t_init)-lambda_s*(xw-xs)-lambda_w*(t_init+wt-xw)))
+#   }else if(t_init<xs && xs<t_init+wt){  # case 2: t_init<xs and xs<t_init+wt<xw
+#     return(lambda_s*exp(-lambda_w*(xs-t_init)-lambda_s*(t_init+wt-xs)))
+#   }else if(t_init+wt<xs){  # case 3: t_init<xs and t_init+wt<xs
+#     return(lambda_w*exp(-lambda_w*(wt)))
+#   }else if(t_init<xw && t_init+wt<xw){  # case 4: xs<t_init<xw and t_init+wt<xw
+#     return(lambda_s*exp(-lambda_s*(wt)))
+#   }else if(t_init<xw && xw<t_init+wt){  # case 5: xs<t_init<xw and xw<t_init+wt
+#     return(lambda_w*exp(-lambda_s*(xw-t_init)-lambda_w*(t_init+wt-xw)))
+#   }else if(xw<t_init){  # case 6: xw<t_init
+#     return(lambda_w*exp(-lambda_w*(wt)))
+#   }
+# }
+
+
+JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,INCL_DENSITY=FALSE,loglik=FALSE){
+  if(x_s>x_w){
+    if(loglik){
+      return(-Inf)
+    }else{
+      return(0)
+    }
+  }
+  if(!is.null(nrow(mat)) && nrow(mat)>0){
+    if(loglik){
+      t1=0
+      for(i in 1:nrow(mat)){
+        t1=t1+log(IndLik(mat[i,1],mat[i,2]-mat[i,1],x_s,x_w,lambda_s,lambda_w,mu_s,mu_w))
+      }
+    }else{
+      t1=1
+      for(i in 1:nrow(mat)){
+        t1=t1*IndLik(mat[i,1],mat[i,2]-mat[i,1],x_s,x_w,lambda_s,lambda_w,mu_s,mu_w)
+      }
+    }
+  }else{
+    if(loglik){
+      t1=0
+    }else{
+      t1=1
+    }
+  }
+  if(INCL_DENSITY){
+    if(loglik){
+      t2=log(dmvnorm(c(x_s,x_w),mean = c(mu_s,mu_w), sigma= matrix(c(sigma_s^2,rho*sigma_s*sigma_w,rho*sigma_s*sigma_w,sigma_w^2),nrow=2,byrow=T)))
+    }else{
+      t2=dmvnorm(c(x_s,x_w),mean = c(mu_s,mu_w), sigma= matrix(c(sigma_s^2,rho*sigma_s*sigma_w,rho*sigma_s*sigma_w,sigma_w^2),nrow=2,byrow=T))
+    }
+  }else{
+    if(loglik){
+      t2=0
+    }else{
+      t2=1
+    }
+  }
+  if(loglik){
+    return(t1+t2)
+  }else{
+    return(t1*t2)
+  }
+}
+
+
+MargLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,loglik=FALSE){
+  if( mu_s> mu_w || sigma_s<0 || sigma_w<0 || abs(rho)>1 || lambda_s<0 || lambda_w <0 || lambda_s > lambda_w){
+    if(loglik){
+      return(-Inf)
+    } else{
+      return(0)
+    } 
+  }
+  if(is.null(nrow(mat)) || nrow(mat)==0){
+    if(loglik){
+      return(0)    
+    }else{
+      return(1)
+    }
+  }
   Sigma=matrix(c(sigma_s^2,rho*sigma_s*sigma_w,rho*sigma_s*sigma_w,sigma_w^2),nrow=2,byrow=T)
   ghout=mgauss.hermite(10,c(mu_s,mu_w),Sigma)
-  return(sum(ghout$weights*unlist(lapply(1:nrow(ghout$points),function(xx) JointLik(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,ghout$points[xx,1],ghout$points[xx,2])))))
+  return(sum(ghout$weights*unlist(lapply(1:nrow(ghout$points),function(xx) JointLik(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,ghout$points[xx,1],ghout$points[xx,2],loglik)))))
 }
+
 
 InitialParameters = function(mat_mod,anchor_t){
   itrvl_len_v = seq(6,9,.5)
@@ -296,8 +394,6 @@ InitialParameters = function(mat_mod,anchor_t){
   }
   return(unlist(out_ls[[order(ratio_v)[1]]]))
 }
-
-
 
 
 GridSearchInitPars = function(mat_mod,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_s0,lambda_w0){
@@ -426,7 +522,7 @@ GetIndSleepEstimates =function(mat_mod,mle.out){
   for(i in 1:length(labels)){
     mat=mat_mod[ls_ids[[i]],1:2]
     g3=function(par_v){
-      return(-log(JointLik(mat,mle.out[1],mle.out[2],mle.out[3],mle.out[4],mle.out[5],mle.out[6],mle.out[7],par_v[1],par_v[2],INCL_DENSITY=TRUE)))
+      return(-JointLik(mat,mle.out[1],mle.out[2],mle.out[3],mle.out[4],mle.out[5],mle.out[6],mle.out[7],par_v[1],par_v[2],INCL_DENSITY=TRUE,loglik=TRUE))
     }
     optim.out3=optim(par=mle.out[1:2],g3,control=list(maxit=1000))
     xmat[i,]=c(optim.out3$par,labels[i])

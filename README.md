@@ -2,16 +2,43 @@ Sleep Prediction
 ================
 
 <!-- To commit and then push all local file changes to the github repository: -->
+
 <!-- 1) Open up Git Bash -->
+
 <!-- 2) Change directory to "C:/Users/Ian/Dropbox/SleepScreenOnOff/SleepEstimation" -->
+
 <!-- 3) git add . -->
+
 <!-- 4) git commit -m "Commit name here" -->
+
 <!-- 5) git push origin master -->
-### Create example screen on/off dataset
 
-The following code generates some example screen on/off data for *ndays=10* days of follow up, with average time to bed at 1:00AM (*mu\_s=1*) with std. dev. *sd\_s=1* hour. Average time to wake up is 8:30AM (*mu\_w=8.5*) with std. dev. *sd\_w=0.5*. Time between screen on events is generated according to an exponential distribution with rate *lambda\_s=0.3* when the person is asleep and rate *lambda\_w=2* when the person is awake. Smaller rates imply longer waiting times between phone use, as we might expect when a person is asleep. The *anchor\_t* parameter should represent an hour of the day that is unlikely to occur during sleep. In this example *anchor\_t=14* corresponds to 2:00PM. The starting hour on the first day when data is first collected is *init\_t=15* (3:00PM).
+\#\#\#Create example screen on/off dataset
 
-The generated data is stored in the outmat matrix. This matrix has three columns, column 1 is the starting time (in hours) of the screen off interval, column 2 is the ending time (in hours) of the screen off interval, with column 3 corresponding to the day of follow-up. Note that starting times (Column 1) are on the interval *\[anchor\_t,anchor\_t+24\]* rather than *\[0,24\]*. To see the screen off intervals (*outmat\_mod*) in time-date format where *d0* is the variable representing the first day of followup, see the *outmat\_orig* matrix. The *Mod2Orig()* and *Orig2Mod()* functions convert back and forth between these two data formats (the formats represented by *outmat\_mod* and *outmat\_orig*).
+The following code generates some example screen on/off data for
+*ndays=10* days of follow up, with average time to bed at 1:00AM
+(*mu\_s=1*) with std. dev. *sd\_s=1* hour. Average time to wake up is
+8:30AM (*mu\_w=8.5*) with std. dev. *sd\_w=0.5*. Time between screen on
+events is generated according to an exponential distribution with rate
+*lambda\_s=0.3* when the person is asleep and rate *lambda\_w=2* when
+the person is awake. Smaller rates imply longer waiting times between
+phone use, as we might expect when a person is asleep. The *anchor\_t*
+parameter should represent an hour of the day that is unlikely to occur
+during sleep. In this example *anchor\_t=14* corresponds to 2:00PM. The
+starting hour on the first day when data is first collected is
+*init\_t=15* (3:00PM).
+
+The generated data is stored in the outmat matrix. This matrix has three
+columns, column 1 is the starting time (in hours) of the screen off
+interval, column 2 is the ending time (in hours) of the screen off
+interval, with column 3 corresponding to the day of follow-up. Note that
+starting times (Column 1) are on the interval
+*\[anchor\_t,anchor\_t+24\]* rather than *\[0,24\]*. To see the screen
+off intervals (*outmat\_mod*) in time-date format where *d0* is the
+variable representing the first day of followup, see the *outmat\_orig*
+matrix. The *Mod2Orig()* and *Orig2Mod()* functions convert back and
+forth between these two data formats (the formats represented by
+*outmat\_mod* and *outmat\_orig*).
 
 ``` r
 ndays=10
@@ -112,48 +139,59 @@ head(outmat_orig)
 ```
 
     ##                    t0                  t1
-    ## 1 03/03/2019 15:00:00 03/03/2019 15:02:10
-    ## 2 03/03/2019 15:02:10 03/03/2019 15:16:43
-    ## 3 03/03/2019 15:16:43 03/03/2019 15:28:40
-    ## 4 03/03/2019 15:28:40 03/03/2019 15:32:49
-    ## 5 03/03/2019 15:32:49 03/03/2019 15:44:52
-    ## 6 03/03/2019 15:44:52 03/03/2019 16:15:06
+    ## 1 03/03/2019 15:00:00 03/03/2019 15:00:37
+    ## 2 03/03/2019 15:00:37 03/03/2019 15:04:45
+    ## 3 03/03/2019 15:04:45 03/03/2019 15:55:36
+    ## 4 03/03/2019 15:55:36 03/03/2019 16:05:45
+    ## 5 03/03/2019 16:05:45 03/03/2019 16:19:04
+    ## 6 03/03/2019 16:19:04 03/03/2019 16:35:38
 
 ``` r
 head(outmat_mod)
 ```
 
     ##          [,1]     [,2] [,3]
-    ## [1,] 15.00000 15.03625    1
-    ## [2,] 15.03625 15.27870    1
-    ## [3,] 15.27870 15.47803    1
-    ## [4,] 15.47803 15.54704    1
-    ## [5,] 15.54704 15.74790    1
-    ## [6,] 15.74790 16.25183    1
+    ## [1,] 15.00000 15.01031    1
+    ## [2,] 15.01031 15.07927    1
+    ## [3,] 15.07927 15.92672    1
+    ## [4,] 15.92672 16.09605    1
+    ## [5,] 16.09605 16.31796    1
+    ## [6,] 16.31796 16.59406    1
 
 ``` r
 head(compare_to_outmat_mod)
 ```
 
     ##          [,1]     [,2] [,3]
-    ## [1,] 15.00000 15.03611    1
-    ## [2,] 15.03611 15.27861    1
-    ## [3,] 15.27861 15.47778    1
-    ## [4,] 15.47778 15.54694    1
-    ## [5,] 15.54694 15.74778    1
-    ## [6,] 15.74778 16.25167    1
+    ## [1,] 15.00000 15.01028    1
+    ## [2,] 15.01028 15.07917    1
+    ## [3,] 15.07917 15.92667    1
+    ## [4,] 15.92667 16.09583    1
+    ## [5,] 16.09583 16.31778    1
+    ## [6,] 16.31778 16.59389    1
 
-To see what the resulting data looks like:
+To see what the resulting data looks
+like:
 
 ``` r
 hist(outmat_mod[,1] %% 24,breaks=24,xlim=c(0,24),xlab="Hour of day",main="Frequency of screen on events")
 ```
 
-![](README_files/figure-markdown_github/unnamed-chunk-2-1.png) Notice how there are fewer screen on events During the nighttime hours, as expected.
+![](README_files/figure-gfm/unnamed-chunk-2-1.png)<!-- --> Notice how
+there are fewer screen on events During the nighttime hours, as
+expected.
 
 ### Gaussian quadrature for bivariate integration
 
-The time to bed *x\_s* and time to wake *x\_w* is unknown for each night of follow-up. In this approach, we treat *(x\_s,x\_w)* as a bivariate normal random variable with mean *(mu\_s,mu\_w)* with *cor(x\_s,x\_w)=rho* and marginal variances *(sigma\_s<sup>2,sigma\_w</sup>2)*. To calculate the marginal likelihood we integrate over the conditional likelihood with respect to *(x\_s,x\_w)* for each night in follow up. Because this is a Gaussian integral it can be done efficiently using Guassian quadrature, more specifically Gauss-Hermite quadrature. The code for this is here:
+The time to bed *x\_s* and time to wake *x\_w* is unknown for each night
+of follow-up. In this approach, we treat *(x\_s,x\_w)* as a bivariate
+normal random variable with mean *(mu\_s,mu\_w)* with
+*cor(x\_s,x\_w)=rho* and marginal variances
+*(sigma\_s<sup>2,sigma\_w</sup>2)*. To calculate the marginal likelihood
+we integrate over the conditional likelihood with respect to
+*(x\_s,x\_w)* for each night in follow up. Because this is a Gaussian
+integral it can be done efficiently using Guassian quadrature, more
+specifically Gauss-Hermite quadrature. The code for this is here:
 
 ``` r
 ## perform quadrature of multivariate normal
@@ -239,48 +277,152 @@ mgauss.hermite <- function(n, mu, sigma, prune=NULL) {
 
 ### Estimating model parameters
 
-Next, we write the likelihood function and use Hermite-Gauss quadrature to perform numerical integration over the unknown bedtimes and wake-up times (*x\_s* and *x\_w*). We do a grid search over some of the parameter space (*rho*, *sigma\_s*, and *sigma\_w*) to pick an initial value for the numerical optimization of the likelihood, but we make smarter data-based guesses as initial values for the remaing parameters (*mu\_s*, *mu\_w*, *lambda\_s*, and *lambda\_w*).
+Next, we write the likelihood function and use Hermite-Gauss quadrature
+to perform numerical integration over the unknown bedtimes and wake-up
+times (*x\_s* and *x\_w*). We do a grid search over some of the
+parameter space (*rho*, *sigma\_s*, and *sigma\_w*) to pick an initial
+value for the numerical optimization of the likelihood, but we make
+smarter data-based guesses as initial values for the remaing parameters
+(*mu\_s*, *mu\_w*, *lambda\_s*, and *lambda\_w*).
 
 ``` r
-IndLik = function(t_init,wt,xs,xw,lambda_s,lambda_w){
-  if(t_init< xs){
-    numer = lambda_w*exp(-lambda_w*wt)
-    denom = 1-exp(-lambda_w*(xs-t_init))+exp(-lambda_s*(xs-t_init))-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))
-  }else if(t_init < xw){
-    numer = lambda_s*exp(-lambda_s*wt)
-    denom = 1-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))
-  }else{
-    numer = lambda_w*exp(-lambda_w*wt)
-    denom = 1
-  }
-  return(numer/denom)
-}
+# IndLik2 = function(t_init,wt,xs,xw,lambda_s,lambda_w){
+#   if(t_init< xs){
+#     numer = lambda_w*exp(-lambda_w*wt)
+#     denom = 1-exp(-lambda_w*(xs-t_init))+exp(-lambda_s*(xs-t_init))-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))
+#   }else if(t_init < xw){
+#     numer = lambda_s*exp(-lambda_s*wt)
+#     denom = 1-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))
+#   }else{
+#     numer = lambda_w*exp(-lambda_w*wt)
+#     denom = 1
+#   }
+#   return(numer/denom)
+# }
 
-JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,INCL_DENSITY=FALSE){
-  if(x_s>x_w){return(0)}
-  if(!is.null(nrow(mat)) && nrow(mat)>0){
-    t1=1
-    for(i in 1:nrow(mat)){
-      t1=t1*IndLik(mat[i,1],mat[i,2]-mat[i,1],x_s,x_w,lambda_s,lambda_w)
+IndLik = function(t_init,wt,xs,xw,lambda_s,lambda_w,mu_s,mu_w){
+  if(t_init+wt>mu_s+24){ # return pr(t_init+wt>mu_s+24) instead of density
+    if(t_init<xs){
+      denom=1-exp(-lambda_w*(xs-t_init))+exp(-lambda_s*(xs-t_init))-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+      numer=(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+      return(numer/denom)
+    }else if(t_init<xw){
+      denom=1-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+      numer=(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+      return(numer/denom)
+    }else{
+      denom=1-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+      numer=(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+      return(numer/denom)
+    }
+  }
+  if(t_init<xs){
+    denom=1-exp(-lambda_w*(xs-t_init))+exp(-lambda_s*(xs-t_init))-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+    if(t_init+wt<xs){
+      return(lambda_w*exp(-lambda_w*(wt))/denom)
+    }else if(t_init+wt<xw){
+      return(lambda_s*exp(-lambda_w*(xs-t_init)-lambda_s*(t_init+wt-xs))/denom)
+    }else{
+      return(lambda_w*exp(-lambda_w*(xs-t_init)-lambda_s*(xw-xs)-lambda_w*(t_init+wt-xw))/denom)
+    }
+  }else if(t_init<xw){
+    denom=1-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+    if(t_init+wt<xw){
+      return(lambda_s*exp(-lambda_s*(wt))/denom)
+    }else{
+      return(lambda_w*exp(-lambda_s*(xw-t_init)-lambda_w*(t_init+wt-xw))/denom)    
     }
   }else{
-    t1=1
+    denom=1-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+    return(lambda_w*exp(-lambda_w*(wt))/denom)
   }
-  if(INCL_DENSITY){
-    t2=dmvnorm(c(x_s,x_w),mean = c(mu_s,mu_w), sigma= matrix(c(sigma_s^2,rho*sigma_s*sigma_w,rho*sigma_s*sigma_w,sigma_w^2),nrow=2,byrow=T))
-  }else{
-    t2=1
-  }
-  return(t1*t2)
 }
 
-MargLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w){
-  if( mu_s> mu_w || sigma_s<0 || sigma_w<0 || abs(rho)>1 || lambda_s<0 || lambda_w <0 || lambda_s > lambda_w){return(0)}
-  if(is.null(nrow(mat)) || nrow(mat)==0){return(1)}
+# IndLik = function(t_init,wt,xs,xw,lambda_s,lambda_w){
+#   if(t_init<xs && xw<t_init+wt){# case 1: t_init<xs and xw<t_init+wt
+#     return(lambda_w*exp(-lambda_w*(xs-t_init)-lambda_s*(xw-xs)-lambda_w*(t_init+wt-xw)))
+#   }else if(t_init<xs && xs<t_init+wt){  # case 2: t_init<xs and xs<t_init+wt<xw
+#     return(lambda_s*exp(-lambda_w*(xs-t_init)-lambda_s*(t_init+wt-xs)))
+#   }else if(t_init+wt<xs){  # case 3: t_init<xs and t_init+wt<xs
+#     return(lambda_w*exp(-lambda_w*(wt)))
+#   }else if(t_init<xw && t_init+wt<xw){  # case 4: xs<t_init<xw and t_init+wt<xw
+#     return(lambda_s*exp(-lambda_s*(wt)))
+#   }else if(t_init<xw && xw<t_init+wt){  # case 5: xs<t_init<xw and xw<t_init+wt
+#     return(lambda_w*exp(-lambda_s*(xw-t_init)-lambda_w*(t_init+wt-xw)))
+#   }else if(xw<t_init){  # case 6: xw<t_init
+#     return(lambda_w*exp(-lambda_w*(wt)))
+#   }
+# }
+
+
+JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,INCL_DENSITY=FALSE,loglik=FALSE){
+  if(x_s>x_w){
+    if(loglik){
+      return(-Inf)
+    }else{
+      return(0)
+    }
+  }
+  if(!is.null(nrow(mat)) && nrow(mat)>0){
+    if(loglik){
+      t1=0
+      for(i in 1:nrow(mat)){
+        t1=t1+log(IndLik(mat[i,1],mat[i,2]-mat[i,1],x_s,x_w,lambda_s,lambda_w,mu_s,mu_w))
+      }
+    }else{
+      t1=1
+      for(i in 1:nrow(mat)){
+        t1=t1*IndLik(mat[i,1],mat[i,2]-mat[i,1],x_s,x_w,lambda_s,lambda_w,mu_s,mu_w)
+      }
+    }
+  }else{
+    if(loglik){
+      t1=0
+    }else{
+      t1=1
+    }
+  }
+  if(INCL_DENSITY){
+    if(loglik){
+      t2=log(dmvnorm(c(x_s,x_w),mean = c(mu_s,mu_w), sigma= matrix(c(sigma_s^2,rho*sigma_s*sigma_w,rho*sigma_s*sigma_w,sigma_w^2),nrow=2,byrow=T)))
+    }else{
+      t2=dmvnorm(c(x_s,x_w),mean = c(mu_s,mu_w), sigma= matrix(c(sigma_s^2,rho*sigma_s*sigma_w,rho*sigma_s*sigma_w,sigma_w^2),nrow=2,byrow=T))
+    }
+  }else{
+    if(loglik){
+      t2=0
+    }else{
+      t2=1
+    }
+  }
+  if(loglik){
+    return(t1+t2)
+  }else{
+    return(t1*t2)
+  }
+}
+
+
+MargLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,loglik=FALSE){
+  if( mu_s> mu_w || sigma_s<0 || sigma_w<0 || abs(rho)>1 || lambda_s<0 || lambda_w <0 || lambda_s > lambda_w){
+    if(loglik){
+      return(-Inf)
+    } else{
+      return(0)
+    } 
+  }
+  if(is.null(nrow(mat)) || nrow(mat)==0){
+    if(loglik){
+      return(0)    
+    }else{
+      return(1)
+    }
+  }
   Sigma=matrix(c(sigma_s^2,rho*sigma_s*sigma_w,rho*sigma_s*sigma_w,sigma_w^2),nrow=2,byrow=T)
   ghout=mgauss.hermite(10,c(mu_s,mu_w),Sigma)
-  return(sum(ghout$weights*unlist(lapply(1:nrow(ghout$points),function(xx) JointLik(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,ghout$points[xx,1],ghout$points[xx,2])))))
+  return(sum(ghout$weights*unlist(lapply(1:nrow(ghout$points),function(xx) JointLik(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,ghout$points[xx,1],ghout$points[xx,2],loglik)))))
 }
+
 
 InitialParameters = function(mat_mod,anchor_t){
   itrvl_len_v = seq(6,9,.5)
@@ -305,8 +447,6 @@ InitialParameters = function(mat_mod,anchor_t){
   }
   return(unlist(out_ls[[order(ratio_v)[1]]]))
 }
-
-
 
 
 GridSearchInitPars = function(mat_mod,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_s0,lambda_w0){
@@ -392,11 +532,13 @@ mle.out=FindParamMLEs(outmat_mod,anchor_t)
 
     ## Identifying good initial model parameters...
     ## Numerical optimization (using optim) until convergence (maxiter= 20 ):
-    ## Iter  1 : mu_s = 25.19385 ; mu_w = 32.14444 ; sd_s = 1.092032 ; sd_w = 0.9572812 ; rho = 0.7782903 ; lambda_s = 1.751777 ; lambda_w = 4.77403 
-    ## Iter  2 : mu_s = 25.19036 ; mu_w = 32.11145 ; sd_s = 1.092591 ; sd_w = 0.9572735 ; rho = 0.7775206 ; lambda_s = 1.731941 ; lambda_w = 4.756752 
-    ## Iter  3 : mu_s = 25.19036 ; mu_w = 32.11145 ; sd_s = 1.092593 ; sd_w = 0.9573155 ; rho = 0.777545 ; lambda_s = 1.731947 ; lambda_w = 4.756758
+    ## Iter  1 : mu_s = 25.24636 ; mu_w = 33.28475 ; sd_s = 1.025562 ; sd_w = 0.9999187 ; rho = 0.7637859 ; lambda_s = 1.74148 ; lambda_w = 5.105744 
+    ## Iter  2 : mu_s = 25.24236 ; mu_w = 33.28475 ; sd_s = 1.02624 ; sd_w = 0.9987874 ; rho = 0.766085 ; lambda_s = 1.661761 ; lambda_w = 5.012784 
+    ## Iter  3 : mu_s = 25.24236 ; mu_w = 33.28475 ; sd_s = 1.02624 ; sd_w = 0.9987874 ; rho = 0.766085 ; lambda_s = 1.667631 ; lambda_w = 5.001537 
+    ## Iter  4 : mu_s = 25.24236 ; mu_w = 33.28475 ; sd_s = 1.02624 ; sd_w = 0.9987874 ; rho = 0.766085 ; lambda_s = 1.667631 ; lambda_w = 5.001537
 
-The maximum likelihood estimates and the interpretations of the model parameters are:
+The maximum likelihood estimates and the interpretations of the model
+parameters are:
 
 ``` r
 sleep_t_h=floor(mle.out[1]%%24)
@@ -420,15 +562,27 @@ cat(paste(" Avg. time to sleep = ",sleep_t," (+/- ",round(mle.out[3],1)," hour)\
 ,(paste("Rate (per hour) of frequency of phone use while awake = ", round(mle.out[7],5),"\n",sep="")))
 ```
 
-    ##  Avg. time to sleep = 1:11 (+/- 1.1 hour)
-    ##  Avg. time to wake  = 8:06 (+/- 1 hour)
-    ##  Correlation between time to sleep and time to wake = 0.78
-    ##  Rate (per hour) of frequency of phone use while asleep = 1.73195
-    ##  Rate (per hour) of frequency of phone use while awake = 4.75676
+    ##  Avg. time to sleep = 1:14 (+/- 1 hour)
+    ##  Avg. time to wake  = 9:17 (+/- 1 hour)
+    ##  Correlation between time to sleep and time to wake = 0.77
+    ##  Rate (per hour) of frequency of phone use while asleep = 1.66763
+    ##  Rate (per hour) of frequency of phone use while awake = 5.00154
 
 ### Estimating bed times and wake up times for each day
 
-Now that the model parameters have been estimated, we can maximize the joint density function of a) the bed times (*x\_s*), b) the wake-up times (*x\_w*), and c) the screen on/off data, with respect to the *x\_s* and *x\_w*. These will be our bed time and wake-up time estimates for each individual night. The rationale for maximizing the joint likelihood is that the distribution of the *x\_s* and *x\_w* will pull estimates towards *mu\_s* and *mu\_w*, respectively, while the distribution of the screen on/off data will pull bedtime and wake-up estimates towards the data fit. This way if there is very little data, then bedtime and wake-up estimates will be close to *mu\_s* and *mu\_w*, while more data will allow us to trust the data more and estimates will reflect that. This balance is ideal for situations where sparse data may be present.
+Now that the model parameters have been estimated, we can maximize the
+joint density function of a) the bed times (*x\_s*), b) the wake-up
+times (*x\_w*), and c) the screen on/off data, with respect to the
+*x\_s* and *x\_w*. These will be our bed time and wake-up time estimates
+for each individual night. The rationale for maximizing the joint
+likelihood is that the distribution of the *x\_s* and *x\_w* will pull
+estimates towards *mu\_s* and *mu\_w*, respectively, while the
+distribution of the screen on/off data will pull bedtime and wake-up
+estimates towards the data fit. This way if there is very little data,
+then bedtime and wake-up estimates will be close to *mu\_s* and *mu\_w*,
+while more data will allow us to trust the data more and estimates will
+reflect that. This balance is ideal for situations where sparse data may
+be present.
 
 The R function to find these estimates are here:
 
@@ -443,7 +597,7 @@ GetIndSleepEstimates =function(mat_mod,mle.out){
   for(i in 1:length(labels)){
     mat=mat_mod[ls_ids[[i]],1:2]
     g3=function(par_v){
-      return(-log(JointLik(mat,mle.out[1],mle.out[2],mle.out[3],mle.out[4],mle.out[5],mle.out[6],mle.out[7],par_v[1],par_v[2],INCL_DENSITY=TRUE)))
+      return(-JointLik(mat,mle.out[1],mle.out[2],mle.out[3],mle.out[4],mle.out[5],mle.out[6],mle.out[7],par_v[1],par_v[2],INCL_DENSITY=TRUE,loglik=TRUE))
     }
     optim.out3=optim(par=mle.out[1:2],g3,control=list(maxit=1000))
     xmat[i,]=c(optim.out3$par,labels[i])
@@ -452,13 +606,16 @@ GetIndSleepEstimates =function(mat_mod,mle.out){
 }
 ```
 
-Let's run this function on our simulated data (*outmat\_mod*) using the parameter MLEs (*mle.out*) we just estimated as input.
+Let’s run this function on our simulated data (*outmat\_mod*) using the
+parameter MLEs (*mle.out*) we just estimated as input.
 
 ``` r
 xest=GetIndSleepEstimates(outmat_mod,mle.out)
 ```
 
-*xest* contains each day's estimated bedtimes and wake-up times. Let's convert back to the original time scale using the Mod2Orig() function we defined before.
+*xest* contains each day’s estimated bedtimes and wake-up times. Let’s
+convert back to the original time scale using the Mod2Orig() function we
+defined before.
 
 ``` r
 xest_orig=Mod2Orig(xest,d0,format="%m/%d/%Y %H:%M:%S")
@@ -467,13 +624,13 @@ xest_orig
 ```
 
     ##                bedtime        wake-up time
-    ## 1  03/04/2019 01:49:58 03/04/2019 08:27:47
-    ## 2  03/05/2019 00:50:51 03/05/2019 07:48:57
-    ## 3  03/06/2019 01:54:51 03/06/2019 08:19:00
-    ## 4  03/07/2019 00:55:23 03/07/2019 08:21:11
-    ## 5  03/08/2019 02:13:17 03/08/2019 08:40:13
-    ## 6  03/09/2019 01:07:53 03/09/2019 08:01:17
-    ## 7  03/10/2019 00:48:15 03/10/2019 07:18:14
-    ## 8  03/11/2019 02:04:52 03/11/2019 08:53:14
-    ## 9  03/12/2019 01:14:14 03/12/2019 08:02:56
-    ## 10 03/13/2019 00:50:47 03/13/2019 07:35:17
+    ## 1  03/04/2019 01:10:00 03/04/2019 09:21:19
+    ## 2  03/05/2019 01:12:36 03/05/2019 09:20:05
+    ## 3  03/06/2019 00:36:01 03/06/2019 09:01:37
+    ## 4  03/07/2019 00:34:29 03/07/2019 08:37:12
+    ## 5  03/08/2019 01:12:09 03/08/2019 10:02:32
+    ## 6  03/09/2019 00:24:41 03/09/2019 09:02:23
+    ## 7  03/10/2019 00:30:43 03/10/2019 08:51:44
+    ## 8  03/11/2019 01:12:39 03/11/2019 09:35:59
+    ## 9  03/12/2019 00:57:41 03/12/2019 09:26:44
+    ## 10 03/13/2019 02:43:05 03/13/2019 09:22:42

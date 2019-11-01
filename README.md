@@ -139,36 +139,36 @@ head(outmat_orig)
 ```
 
     ##                    t0                  t1
-    ## 1 03/03/2019 15:00:00 03/03/2019 15:00:37
-    ## 2 03/03/2019 15:00:37 03/03/2019 15:04:45
-    ## 3 03/03/2019 15:04:45 03/03/2019 15:55:36
-    ## 4 03/03/2019 15:55:36 03/03/2019 16:05:45
-    ## 5 03/03/2019 16:05:45 03/03/2019 16:19:04
-    ## 6 03/03/2019 16:19:04 03/03/2019 16:35:38
+    ## 1 03/03/2019 15:00:00 03/03/2019 15:01:24
+    ## 2 03/03/2019 15:01:24 03/03/2019 15:07:07
+    ## 3 03/03/2019 15:07:07 03/03/2019 15:10:30
+    ## 4 03/03/2019 15:10:30 03/03/2019 15:14:44
+    ## 5 03/03/2019 15:14:44 03/03/2019 15:25:43
+    ## 6 03/03/2019 15:25:43 03/03/2019 15:52:49
 
 ``` r
 head(outmat_mod)
 ```
 
     ##          [,1]     [,2] [,3]
-    ## [1,] 15.00000 15.01031    1
-    ## [2,] 15.01031 15.07927    1
-    ## [3,] 15.07927 15.92672    1
-    ## [4,] 15.92672 16.09605    1
-    ## [5,] 16.09605 16.31796    1
-    ## [6,] 16.31796 16.59406    1
+    ## [1,] 15.00000 15.02355    1
+    ## [2,] 15.02355 15.11874    1
+    ## [3,] 15.11874 15.17514    1
+    ## [4,] 15.17514 15.24565    1
+    ## [5,] 15.24565 15.42864    1
+    ## [6,] 15.42864 15.88029    1
 
 ``` r
 head(compare_to_outmat_mod)
 ```
 
     ##          [,1]     [,2] [,3]
-    ## [1,] 15.00000 15.01028    1
-    ## [2,] 15.01028 15.07917    1
-    ## [3,] 15.07917 15.92667    1
-    ## [4,] 15.92667 16.09583    1
-    ## [5,] 16.09583 16.31778    1
-    ## [6,] 16.31778 16.59389    1
+    ## [1,] 15.00000 15.02333    1
+    ## [2,] 15.02333 15.11861    1
+    ## [3,] 15.11861 15.17500    1
+    ## [4,] 15.17500 15.24556    1
+    ## [5,] 15.24556 15.42861    1
+    ## [6,] 15.42861 15.88028    1
 
 To see what the resulting data looks
 like:
@@ -283,23 +283,12 @@ times (*x\_s* and *x\_w*). We do a grid search over some of the
 parameter space (*rho*, *sigma\_s*, and *sigma\_w*) to pick an initial
 value for the numerical optimization of the likelihood, but we make
 smarter data-based guesses as initial values for the remaing parameters
-(*mu\_s*, *mu\_w*, *lambda\_s*, and *lambda\_w*).
+(*mu\_s*, *mu\_w*, *lambda\_s*, and *lambda\_w*). Note that we also
+allow for the option of setting *rho* equal to zero. This is controlled
+by the boolean *incl\_rho* parameter in the FindParamMLEs function, with
+a default value of false.
 
 ``` r
-# IndLik2 = function(t_init,wt,xs,xw,lambda_s,lambda_w){
-#   if(t_init< xs){
-#     numer = lambda_w*exp(-lambda_w*wt)
-#     denom = 1-exp(-lambda_w*(xs-t_init))+exp(-lambda_s*(xs-t_init))-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))
-#   }else if(t_init < xw){
-#     numer = lambda_s*exp(-lambda_s*wt)
-#     denom = 1-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))
-#   }else{
-#     numer = lambda_w*exp(-lambda_w*wt)
-#     denom = 1
-#   }
-#   return(numer/denom)
-# }
-
 IndLik = function(t_init,wt,xs,xw,lambda_s,lambda_w,mu_s,mu_w){
   if(t_init+wt>mu_s+24){ # return pr(t_init+wt>mu_s+24) instead of density
     if(t_init<xs){
@@ -338,24 +327,8 @@ IndLik = function(t_init,wt,xs,xw,lambda_s,lambda_w,mu_s,mu_w){
   }
 }
 
-# IndLik = function(t_init,wt,xs,xw,lambda_s,lambda_w){
-#   if(t_init<xs && xw<t_init+wt){# case 1: t_init<xs and xw<t_init+wt
-#     return(lambda_w*exp(-lambda_w*(xs-t_init)-lambda_s*(xw-xs)-lambda_w*(t_init+wt-xw)))
-#   }else if(t_init<xs && xs<t_init+wt){  # case 2: t_init<xs and xs<t_init+wt<xw
-#     return(lambda_s*exp(-lambda_w*(xs-t_init)-lambda_s*(t_init+wt-xs)))
-#   }else if(t_init+wt<xs){  # case 3: t_init<xs and t_init+wt<xs
-#     return(lambda_w*exp(-lambda_w*(wt)))
-#   }else if(t_init<xw && t_init+wt<xw){  # case 4: xs<t_init<xw and t_init+wt<xw
-#     return(lambda_s*exp(-lambda_s*(wt)))
-#   }else if(t_init<xw && xw<t_init+wt){  # case 5: xs<t_init<xw and xw<t_init+wt
-#     return(lambda_w*exp(-lambda_s*(xw-t_init)-lambda_w*(t_init+wt-xw)))
-#   }else if(xw<t_init){  # case 6: xw<t_init
-#     return(lambda_w*exp(-lambda_w*(wt)))
-#   }
-# }
 
-
-JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,INCL_DENSITY=FALSE,loglik=FALSE){
+JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,INCL_DENSITY=FALSE,loglik=FALSE,incl_rho=FALSE){
   if(x_s>x_w){
     if(loglik){
       return(-Inf)
@@ -383,6 +356,7 @@ JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,
     }
   }
   if(INCL_DENSITY){
+    if(!incl_rho){rho=0}
     if(loglik){
       t2=log(dmvnorm(c(x_s,x_w),mean = c(mu_s,mu_w), sigma= matrix(c(sigma_s^2,rho*sigma_s*sigma_w,rho*sigma_s*sigma_w,sigma_w^2),nrow=2,byrow=T)))
     }else{
@@ -403,7 +377,7 @@ JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,
 }
 
 
-MargLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,loglik=FALSE){
+MargLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,incl_rho,loglik=FALSE){
   if( mu_s> mu_w || sigma_s<0 || sigma_w<0 || abs(rho)>1 || lambda_s<0 || lambda_w <0 || lambda_s > lambda_w){
     if(loglik){
       return(-Inf)
@@ -418,9 +392,13 @@ MargLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,loglik=FA
       return(1)
     }
   }
-  Sigma=matrix(c(sigma_s^2,rho*sigma_s*sigma_w,rho*sigma_s*sigma_w,sigma_w^2),nrow=2,byrow=T)
+  if(incl_rho){
+    Sigma=matrix(c(sigma_s^2,rho*sigma_s*sigma_w,rho*sigma_s*sigma_w,sigma_w^2),nrow=2,byrow=T)
+  }else{
+    Sigma=matrix(c(sigma_s^2,0,0,sigma_w^2),nrow=2,byrow=T)
+  }
   ghout=mgauss.hermite(10,c(mu_s,mu_w),Sigma)
-  return(sum(ghout$weights*unlist(lapply(1:nrow(ghout$points),function(xx) JointLik(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,ghout$points[xx,1],ghout$points[xx,2],loglik)))))
+  return(sum(ghout$weights*unlist(lapply(1:nrow(ghout$points),function(xx) JointLik(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,ghout$points[xx,1],ghout$points[xx,2],loglik,incl_rho)))))
 }
 
 
@@ -449,15 +427,19 @@ InitialParameters = function(mat_mod,anchor_t){
 }
 
 
-GridSearchInitPars = function(mat_mod,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_s0,lambda_w0){
+GridSearchInitPars = function(mat_mod,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_s0,lambda_w0,incl_rho){
   sd_s_v = c(.25,.5,1)
   sd_w_v = c(.25,.5,1)
-  rho_v= c(0,.25,.5,.75)
+  if(incl_rho){
+    rho_v= c(0,.25,.5,.75)
+  }else{
+    rho_v=c(0)
+  }
   g=function(par_v){
     liktot=0
     for(i in 1:length(labels)){
       mat=mat_mod[ls_ids[[i]],1:2]
-      liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],par_v[3],par_v[4],par_v[5],par_v[6],par_v[7]))
+      liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],par_v[3],par_v[4],par_v[5],par_v[6],par_v[7],incl_rho))
     }
     return(liktot)
   }
@@ -478,7 +460,7 @@ GridSearchInitPars = function(mat_mod,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_
 }
 
 
-FindParamMLEs = function(dat,anchor_t,maxiter=20,init_par=NULL,tol=.0001){
+FindParamMLEs = function(dat,anchor_t,incl_rho=FALSE,maxiter=20,init_par=NULL,tol=.0001){
   labels=unique(dat[,3])
   ls_ids = list()
   for(i in 1:length(labels)){
@@ -491,7 +473,7 @@ FindParamMLEs = function(dat,anchor_t,maxiter=20,init_par=NULL,tol=.0001){
     mu_w0=init_pars4[2]
     lambda_s0=init_pars4[3]
     lambda_w0=init_pars4[4]
-    init_par = GridSearchInitPars(dat,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_s0,lambda_w0)
+    init_par = GridSearchInitPars(dat,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_s0,lambda_w0,incl_rho)
   }
   cur_par=init_par
   prev_par=cur_par
@@ -501,22 +483,35 @@ FindParamMLEs = function(dat,anchor_t,maxiter=20,init_par=NULL,tol=.0001){
       liktot=0
       for(i in 1:length(labels)){
         mat=dat[ls_ids[[i]],1:2]
-        liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],cur_par[3],cur_par[4],cur_par[5],par_v[3],par_v[4]))
+        liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],cur_par[3],cur_par[4],cur_par[5],par_v[3],par_v[4],incl_rho))
       }
       return(liktot)
     }
     optim.out1=optim(par=cur_par[c(1,2,6,7)],g1,control=list(maxit=1000))
     cur_par[c(1,2,6,7)]=optim.out1$par
-    g2=function(par_v){
-      liktot=0
-      for(i in 1:length(labels)){
-        mat=dat[ls_ids[[i]],1:2]
-        liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],par_v[3],cur_par[6],cur_par[7]))
+    if(incl_rho){
+      g2=function(par_v){
+        liktot=0
+        for(i in 1:length(labels)){
+          mat=dat[ls_ids[[i]],1:2]
+          liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],par_v[3],cur_par[6],cur_par[7],incl_rho))
+        }
+        return(liktot)
       }
-      return(liktot)
+      optim.out2=optim(par=cur_par[c(3,4,5)],g2,control=list(maxit=1000))
+      cur_par[c(3,4,5)]=optim.out2$par
+    }else{
+      g2=function(par_v){
+        liktot=0
+        for(i in 1:length(labels)){
+          mat=dat[ls_ids[[i]],1:2]
+          liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],0,cur_par[6],cur_par[7],incl_rho))
+        }
+        return(liktot)
+      }
+      optim.out2=optim(par=cur_par[c(3,4)],g2,control=list(maxit=1000))
+      cur_par[c(3,4)]=optim.out2$par
     }
-    optim.out2=optim(par=cur_par[c(3,4,5)],g2,control=list(maxit=1000))
-    cur_par[c(3,4,5)]=optim.out2$par
     cat("Iter ",i,": mu_s =",cur_par[1],"; mu_w =",cur_par[2],"; sd_s =",cur_par[3],"; sd_w =",cur_par[4],"; rho =",cur_par[5],"; lambda_s =",cur_par[6],"; lambda_w =",cur_par[7],"\n")
     if(sum((prev_par-cur_par)^2)<tol){
       break
@@ -527,15 +522,15 @@ FindParamMLEs = function(dat,anchor_t,maxiter=20,init_par=NULL,tol=.0001){
   return(cur_par)
 }
 
-mle.out=FindParamMLEs(outmat_mod,anchor_t)
+mle.out=FindParamMLEs(outmat_mod,anchor_t,incl_rho=FALSE)
 ```
 
     ## Identifying good initial model parameters...
     ## Numerical optimization (using optim) until convergence (maxiter= 20 ):
-    ## Iter  1 : mu_s = 25.24636 ; mu_w = 33.28475 ; sd_s = 1.025562 ; sd_w = 0.9999187 ; rho = 0.7637859 ; lambda_s = 1.74148 ; lambda_w = 5.105744 
-    ## Iter  2 : mu_s = 25.24236 ; mu_w = 33.28475 ; sd_s = 1.02624 ; sd_w = 0.9987874 ; rho = 0.766085 ; lambda_s = 1.661761 ; lambda_w = 5.012784 
-    ## Iter  3 : mu_s = 25.24236 ; mu_w = 33.28475 ; sd_s = 1.02624 ; sd_w = 0.9987874 ; rho = 0.766085 ; lambda_s = 1.667631 ; lambda_w = 5.001537 
-    ## Iter  4 : mu_s = 25.24236 ; mu_w = 33.28475 ; sd_s = 1.02624 ; sd_w = 0.9987874 ; rho = 0.766085 ; lambda_s = 1.667631 ; lambda_w = 5.001537
+    ## Iter  1 : mu_s = 24.2816 ; mu_w = 33.18183 ; sd_s = 0.974664 ; sd_w = 0.9723235 ; rho = 0 ; lambda_s = 1.406986 ; lambda_w = 4.921006 
+    ## Iter  2 : mu_s = 24.2816 ; mu_w = 33.1823 ; sd_s = 0.9746456 ; sd_w = 0.9722013 ; rho = 0 ; lambda_s = 1.410163 ; lambda_w = 4.857333 
+    ## Iter  3 : mu_s = 24.2816 ; mu_w = 33.18248 ; sd_s = 0.9746455 ; sd_w = 0.9722016 ; rho = 0 ; lambda_s = 1.479092 ; lambda_w = 4.911341 
+    ## Iter  4 : mu_s = 24.2816 ; mu_w = 33.18247 ; sd_s = 0.9746455 ; sd_w = 0.9722016 ; rho = 0 ; lambda_s = 1.47634 ; lambda_w = 4.908354
 
 The maximum likelihood estimates and the interpretations of the model
 parameters are:
@@ -562,11 +557,11 @@ cat(paste(" Avg. time to sleep = ",sleep_t," (+/- ",round(mle.out[3],1)," hour)\
 ,(paste("Rate (per hour) of frequency of phone use while awake = ", round(mle.out[7],5),"\n",sep="")))
 ```
 
-    ##  Avg. time to sleep = 1:14 (+/- 1 hour)
-    ##  Avg. time to wake  = 9:17 (+/- 1 hour)
-    ##  Correlation between time to sleep and time to wake = 0.77
-    ##  Rate (per hour) of frequency of phone use while asleep = 1.66763
-    ##  Rate (per hour) of frequency of phone use while awake = 5.00154
+    ##  Avg. time to sleep = 0:16 (+/- 1 hour)
+    ##  Avg. time to wake  = 9:10 (+/- 1 hour)
+    ##  Correlation between time to sleep and time to wake = 0
+    ##  Rate (per hour) of frequency of phone use while asleep = 1.47634
+    ##  Rate (per hour) of frequency of phone use while awake = 4.90835
 
 ### Estimating bed times and wake up times for each day
 
@@ -624,13 +619,13 @@ xest_orig
 ```
 
     ##                bedtime        wake-up time
-    ## 1  03/04/2019 01:10:00 03/04/2019 09:21:19
-    ## 2  03/05/2019 01:12:36 03/05/2019 09:20:05
-    ## 3  03/06/2019 00:36:01 03/06/2019 09:01:37
-    ## 4  03/07/2019 00:34:29 03/07/2019 08:37:12
-    ## 5  03/08/2019 01:12:09 03/08/2019 10:02:32
-    ## 6  03/09/2019 00:24:41 03/09/2019 09:02:23
-    ## 7  03/10/2019 00:30:43 03/10/2019 08:51:44
-    ## 8  03/11/2019 01:12:39 03/11/2019 09:35:59
-    ## 9  03/12/2019 00:57:41 03/12/2019 09:26:44
-    ## 10 03/13/2019 02:43:05 03/13/2019 09:22:42
+    ## 1  03/04/2019 00:33:29 03/04/2019 09:52:24
+    ## 2  03/05/2019 00:29:19 03/05/2019 10:51:48
+    ## 3  03/06/2019 01:09:28 03/06/2019 09:18:40
+    ## 4  03/07/2019 00:20:45 03/07/2019 09:00:45
+    ## 5  03/08/2019 00:53:45 03/08/2019 09:13:59
+    ## 6  03/09/2019 00:40:10 03/09/2019 08:49:52
+    ## 7  03/10/2019 01:02:17 03/10/2019 09:03:40
+    ## 8  03/11/2019 00:17:50 03/11/2019 08:57:04
+    ## 9  03/11/2019 23:51:31 03/12/2019 08:43:01
+    ## 10 03/12/2019 23:52:44 03/13/2019 09:00:08

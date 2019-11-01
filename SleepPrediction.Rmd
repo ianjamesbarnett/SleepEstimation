@@ -229,23 +229,9 @@ mgauss.hermite <- function(n, mu, sigma, prune=NULL) {
 
 ### Estimating model parameters
 
-Next, we write the likelihood function and use Hermite-Gauss quadrature to perform numerical integration over the unknown bedtimes and wake-up times (*x_s* and *x_w*). We do a grid search over some of the parameter space (*rho*, *sigma_s*, and *sigma_w*) to pick an initial value for the numerical optimization of the likelihood, but we make smarter data-based guesses as initial values for the remaing parameters (*mu_s*, *mu_w*, *lambda_s*, and *lambda_w*).
+Next, we write the likelihood function and use Hermite-Gauss quadrature to perform numerical integration over the unknown bedtimes and wake-up times (*x_s* and *x_w*). We do a grid search over some of the parameter space (*rho*, *sigma_s*, and *sigma_w*) to pick an initial value for the numerical optimization of the likelihood, but we make smarter data-based guesses as initial values for the remaing parameters (*mu_s*, *mu_w*, *lambda_s*, and *lambda_w*). Note that we also allow for the option of setting *rho* equal to zero. This is controlled by the boolean *incl_rho* parameter in the FindParamMLEs function, with a default value of false.
 
 ```{r}
-
-# IndLik2 = function(t_init,wt,xs,xw,lambda_s,lambda_w){
-#   if(t_init< xs){
-#     numer = lambda_w*exp(-lambda_w*wt)
-#     denom = 1-exp(-lambda_w*(xs-t_init))+exp(-lambda_s*(xs-t_init))-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))
-#   }else if(t_init < xw){
-#     numer = lambda_s*exp(-lambda_s*wt)
-#     denom = 1-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))
-#   }else{
-#     numer = lambda_w*exp(-lambda_w*wt)
-#     denom = 1
-#   }
-#   return(numer/denom)
-# }
 
 IndLik = function(t_init,wt,xs,xw,lambda_s,lambda_w,mu_s,mu_w){
   if(t_init+wt>mu_s+24){ # return pr(t_init+wt>mu_s+24) instead of density
@@ -285,24 +271,8 @@ IndLik = function(t_init,wt,xs,xw,lambda_s,lambda_w,mu_s,mu_w){
   }
 }
 
-# IndLik = function(t_init,wt,xs,xw,lambda_s,lambda_w){
-#   if(t_init<xs && xw<t_init+wt){# case 1: t_init<xs and xw<t_init+wt
-#     return(lambda_w*exp(-lambda_w*(xs-t_init)-lambda_s*(xw-xs)-lambda_w*(t_init+wt-xw)))
-#   }else if(t_init<xs && xs<t_init+wt){  # case 2: t_init<xs and xs<t_init+wt<xw
-#     return(lambda_s*exp(-lambda_w*(xs-t_init)-lambda_s*(t_init+wt-xs)))
-#   }else if(t_init+wt<xs){  # case 3: t_init<xs and t_init+wt<xs
-#     return(lambda_w*exp(-lambda_w*(wt)))
-#   }else if(t_init<xw && t_init+wt<xw){  # case 4: xs<t_init<xw and t_init+wt<xw
-#     return(lambda_s*exp(-lambda_s*(wt)))
-#   }else if(t_init<xw && xw<t_init+wt){  # case 5: xs<t_init<xw and xw<t_init+wt
-#     return(lambda_w*exp(-lambda_s*(xw-t_init)-lambda_w*(t_init+wt-xw)))
-#   }else if(xw<t_init){  # case 6: xw<t_init
-#     return(lambda_w*exp(-lambda_w*(wt)))
-#   }
-# }
 
-
-JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,INCL_DENSITY=FALSE,loglik=FALSE){
+JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,INCL_DENSITY=FALSE,loglik=FALSE,incl_rho=FALSE){
   if(x_s>x_w){
     if(loglik){
       return(-Inf)
@@ -330,6 +300,7 @@ JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,
     }
   }
   if(INCL_DENSITY){
+    if(!incl_rho){rho=0}
     if(loglik){
       t2=log(dmvnorm(c(x_s,x_w),mean = c(mu_s,mu_w), sigma= matrix(c(sigma_s^2,rho*sigma_s*sigma_w,rho*sigma_s*sigma_w,sigma_w^2),nrow=2,byrow=T)))
     }else{
@@ -350,7 +321,7 @@ JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,
 }
 
 
-MargLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,loglik=FALSE){
+MargLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,incl_rho,loglik=FALSE){
   if( mu_s> mu_w || sigma_s<0 || sigma_w<0 || abs(rho)>1 || lambda_s<0 || lambda_w <0 || lambda_s > lambda_w){
     if(loglik){
       return(-Inf)
@@ -365,9 +336,13 @@ MargLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,loglik=FA
       return(1)
     }
   }
-  Sigma=matrix(c(sigma_s^2,rho*sigma_s*sigma_w,rho*sigma_s*sigma_w,sigma_w^2),nrow=2,byrow=T)
+  if(incl_rho){
+    Sigma=matrix(c(sigma_s^2,rho*sigma_s*sigma_w,rho*sigma_s*sigma_w,sigma_w^2),nrow=2,byrow=T)
+  }else{
+    Sigma=matrix(c(sigma_s^2,0,0,sigma_w^2),nrow=2,byrow=T)
+  }
   ghout=mgauss.hermite(10,c(mu_s,mu_w),Sigma)
-  return(sum(ghout$weights*unlist(lapply(1:nrow(ghout$points),function(xx) JointLik(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,ghout$points[xx,1],ghout$points[xx,2],loglik)))))
+  return(sum(ghout$weights*unlist(lapply(1:nrow(ghout$points),function(xx) JointLik(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,ghout$points[xx,1],ghout$points[xx,2],loglik,incl_rho)))))
 }
 
 
@@ -396,15 +371,19 @@ InitialParameters = function(mat_mod,anchor_t){
 }
 
 
-GridSearchInitPars = function(mat_mod,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_s0,lambda_w0){
+GridSearchInitPars = function(mat_mod,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_s0,lambda_w0,incl_rho){
   sd_s_v = c(.25,.5,1)
   sd_w_v = c(.25,.5,1)
-  rho_v= c(0,.25,.5,.75)
+  if(incl_rho){
+    rho_v= c(0,.25,.5,.75)
+  }else{
+    rho_v=c(0)
+  }
   g=function(par_v){
     liktot=0
     for(i in 1:length(labels)){
       mat=mat_mod[ls_ids[[i]],1:2]
-      liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],par_v[3],par_v[4],par_v[5],par_v[6],par_v[7]))
+      liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],par_v[3],par_v[4],par_v[5],par_v[6],par_v[7],incl_rho))
     }
     return(liktot)
   }
@@ -425,7 +404,7 @@ GridSearchInitPars = function(mat_mod,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_
 }
 
 
-FindParamMLEs = function(dat,anchor_t,maxiter=20,init_par=NULL,tol=.0001){
+FindParamMLEs = function(dat,anchor_t,incl_rho=FALSE,maxiter=20,init_par=NULL,tol=.0001){
   labels=unique(dat[,3])
   ls_ids = list()
   for(i in 1:length(labels)){
@@ -438,7 +417,7 @@ FindParamMLEs = function(dat,anchor_t,maxiter=20,init_par=NULL,tol=.0001){
     mu_w0=init_pars4[2]
     lambda_s0=init_pars4[3]
     lambda_w0=init_pars4[4]
-    init_par = GridSearchInitPars(dat,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_s0,lambda_w0)
+    init_par = GridSearchInitPars(dat,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_s0,lambda_w0,incl_rho)
   }
   cur_par=init_par
   prev_par=cur_par
@@ -448,22 +427,35 @@ FindParamMLEs = function(dat,anchor_t,maxiter=20,init_par=NULL,tol=.0001){
       liktot=0
       for(i in 1:length(labels)){
         mat=dat[ls_ids[[i]],1:2]
-        liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],cur_par[3],cur_par[4],cur_par[5],par_v[3],par_v[4]))
+        liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],cur_par[3],cur_par[4],cur_par[5],par_v[3],par_v[4],incl_rho))
       }
       return(liktot)
     }
     optim.out1=optim(par=cur_par[c(1,2,6,7)],g1,control=list(maxit=1000))
     cur_par[c(1,2,6,7)]=optim.out1$par
-    g2=function(par_v){
-      liktot=0
-      for(i in 1:length(labels)){
-        mat=dat[ls_ids[[i]],1:2]
-        liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],par_v[3],cur_par[6],cur_par[7]))
+    if(incl_rho){
+      g2=function(par_v){
+        liktot=0
+        for(i in 1:length(labels)){
+          mat=dat[ls_ids[[i]],1:2]
+          liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],par_v[3],cur_par[6],cur_par[7],incl_rho))
+        }
+        return(liktot)
       }
-      return(liktot)
+      optim.out2=optim(par=cur_par[c(3,4,5)],g2,control=list(maxit=1000))
+      cur_par[c(3,4,5)]=optim.out2$par
+    }else{
+      g2=function(par_v){
+        liktot=0
+        for(i in 1:length(labels)){
+          mat=dat[ls_ids[[i]],1:2]
+          liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],0,cur_par[6],cur_par[7],incl_rho))
+        }
+        return(liktot)
+      }
+      optim.out2=optim(par=cur_par[c(3,4)],g2,control=list(maxit=1000))
+      cur_par[c(3,4)]=optim.out2$par
     }
-    optim.out2=optim(par=cur_par[c(3,4,5)],g2,control=list(maxit=1000))
-    cur_par[c(3,4,5)]=optim.out2$par
     cat("Iter ",i,": mu_s =",cur_par[1],"; mu_w =",cur_par[2],"; sd_s =",cur_par[3],"; sd_w =",cur_par[4],"; rho =",cur_par[5],"; lambda_s =",cur_par[6],"; lambda_w =",cur_par[7],"\n")
     if(sum((prev_par-cur_par)^2)<tol){
       break
@@ -474,7 +466,7 @@ FindParamMLEs = function(dat,anchor_t,maxiter=20,init_par=NULL,tol=.0001){
   return(cur_par)
 }
 
-mle.out=FindParamMLEs(outmat_mod,anchor_t)
+mle.out=FindParamMLEs(outmat_mod,anchor_t,incl_rho=FALSE)
 
 ```
 

@@ -139,39 +139,38 @@ head(outmat_orig)
 ```
 
     ##                    t0                  t1
-    ## 1 03/03/2019 15:00:00 03/03/2019 15:01:24
-    ## 2 03/03/2019 15:01:24 03/03/2019 15:07:07
-    ## 3 03/03/2019 15:07:07 03/03/2019 15:10:30
-    ## 4 03/03/2019 15:10:30 03/03/2019 15:14:44
-    ## 5 03/03/2019 15:14:44 03/03/2019 15:25:43
-    ## 6 03/03/2019 15:25:43 03/03/2019 15:52:49
+    ## 1 03/03/2019 15:00:00 03/03/2019 15:20:59
+    ## 2 03/03/2019 15:20:59 03/03/2019 15:25:22
+    ## 3 03/03/2019 15:25:22 03/03/2019 15:25:26
+    ## 4 03/03/2019 15:25:26 03/03/2019 15:28:19
+    ## 5 03/03/2019 15:28:19 03/03/2019 15:51:13
+    ## 6 03/03/2019 15:51:13 03/03/2019 16:11:37
 
 ``` r
 head(outmat_mod)
 ```
 
     ##          [,1]     [,2] [,3]
-    ## [1,] 15.00000 15.02355    1
-    ## [2,] 15.02355 15.11874    1
-    ## [3,] 15.11874 15.17514    1
-    ## [4,] 15.17514 15.24565    1
-    ## [5,] 15.24565 15.42864    1
-    ## [6,] 15.42864 15.88029    1
+    ## [1,] 15.00000 15.34975    1
+    ## [2,] 15.34975 15.42280    1
+    ## [3,] 15.42280 15.42415    1
+    ## [4,] 15.42415 15.47197    1
+    ## [5,] 15.47197 15.85378    1
+    ## [6,] 15.85378 16.19378    1
 
 ``` r
 head(compare_to_outmat_mod)
 ```
 
     ##          [,1]     [,2] [,3]
-    ## [1,] 15.00000 15.02333    1
-    ## [2,] 15.02333 15.11861    1
-    ## [3,] 15.11861 15.17500    1
-    ## [4,] 15.17500 15.24556    1
-    ## [5,] 15.24556 15.42861    1
-    ## [6,] 15.42861 15.88028    1
+    ## [1,] 15.00000 15.34972    1
+    ## [2,] 15.34972 15.42278    1
+    ## [3,] 15.42278 15.42389    1
+    ## [4,] 15.42389 15.47194    1
+    ## [5,] 15.47194 15.85361    1
+    ## [6,] 15.85361 16.19361    1
 
-To see what the resulting data looks
-like:
+To see what the resulting data looks like:
 
 ``` r
 hist(outmat_mod[,1] %% 24,breaks=24,xlim=c(0,24),xlab="Hour of day",main="Frequency of screen on events")
@@ -460,7 +459,7 @@ GridSearchInitPars = function(mat_mod,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_
 }
 
 
-FindParamMLEs = function(dat,anchor_t,incl_rho=FALSE,maxiter=20,init_par=NULL,tol=.0001){
+FindParamMLEs = function(dat,anchor_t,incl_rho=FALSE,twostage=FALSE,maxiter=20,init_par=NULL,tol=.0001){
   labels=unique(dat[,3])
   ls_ids = list()
   for(i in 1:length(labels)){
@@ -476,61 +475,85 @@ FindParamMLEs = function(dat,anchor_t,incl_rho=FALSE,maxiter=20,init_par=NULL,to
     init_par = GridSearchInitPars(dat,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_s0,lambda_w0,incl_rho)
   }
   cur_par=init_par
-  prev_par=cur_par
-  cat("Numerical optimization (using optim) until convergence (maxiter=",maxiter,"):\n")
-  for(i in 1:maxiter){
-    g1=function(par_v){
-      liktot=0
-      for(i in 1:length(labels)){
-        mat=dat[ls_ids[[i]],1:2]
-        liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],cur_par[3],cur_par[4],cur_par[5],par_v[3],par_v[4],incl_rho))
-      }
-      return(liktot)
-    }
-    optim.out1=optim(par=cur_par[c(1,2,6,7)],g1,control=list(maxit=1000))
-    cur_par[c(1,2,6,7)]=optim.out1$par
+  #### no iteration approach
+  if(!twostage){
     if(incl_rho){
-      g2=function(par_v){
+      g3 = function(par_v){
         liktot=0
         for(i in 1:length(labels)){
           mat=dat[ls_ids[[i]],1:2]
-          liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],par_v[3],cur_par[6],cur_par[7],incl_rho))
+          liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],par_v[3],par_v[4],par_v[5],par_v[6],par_v[7],incl_rho))
         }
         return(liktot)
       }
-      optim.out2=optim(par=cur_par[c(3,4,5)],g2,control=list(maxit=1000))
-      cur_par[c(3,4,5)]=optim.out2$par
+      optim.out3=optim(par=cur_par[c(1,2,3,4,5,6,7)],g3,control=list(maxit=1000))
+      cur_par[c(1,2,3,4,5,6,7)]=optim.out3$par
     }else{
-      g2=function(par_v){
+      g3 = function(par_v){
         liktot=0
         for(i in 1:length(labels)){
           mat=dat[ls_ids[[i]],1:2]
-          liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],0,cur_par[6],cur_par[7],incl_rho))
+          liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],par_v[3],par_v[4],0,par_v[5],par_v[6],incl_rho))
         }
         return(liktot)
       }
-      optim.out2=optim(par=cur_par[c(3,4)],g2,control=list(maxit=1000))
-      cur_par[c(3,4)]=optim.out2$par
+      optim.out3=optim(par=cur_par[c(1,2,3,4,6,7)],g3,control=list(maxit=1000))
+      cur_par[c(1,2,3,4,6,7)]=optim.out3$par
     }
-    cat("Iter ",i,": mu_s =",cur_par[1],"; mu_w =",cur_par[2],"; sd_s =",cur_par[3],"; sd_w =",cur_par[4],"; rho =",cur_par[5],"; lambda_s =",cur_par[6],"; lambda_w =",cur_par[7],"\n")
-    if(sum((prev_par-cur_par)^2)<tol){
-      break
-    }else{
-      prev_par=cur_par
+    return(cur_par)
+  }else{
+    ### iteration approach
+    prev_par=cur_par
+    cat("Numerical optimization (using optim) until convergence (maxiter=",maxiter,"):\n")
+    for(i in 1:maxiter){
+      g1=function(par_v){
+        liktot=0
+        for(i in 1:length(labels)){
+          mat=dat[ls_ids[[i]],1:2]
+          liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],cur_par[3],cur_par[4],cur_par[5],par_v[3],par_v[4],incl_rho))
+        }
+        return(liktot)
+      }
+      optim.out1=optim(par=cur_par[c(1,2,6,7)],g1,control=list(maxit=1000))
+      cur_par[c(1,2,6,7)]=optim.out1$par
+      if(incl_rho){
+        g2=function(par_v){
+          liktot=0
+          for(i in 1:length(labels)){
+            mat=dat[ls_ids[[i]],1:2]
+            liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],par_v[3],cur_par[6],cur_par[7],incl_rho))
+          }
+          return(liktot)
+        }
+        optim.out2=optim(par=cur_par[c(3,4,5)],g2,control=list(maxit=1000))
+        cur_par[c(3,4,5)]=optim.out2$par
+      }else{
+        g2=function(par_v){
+          liktot=0
+          for(i in 1:length(labels)){
+            mat=dat[ls_ids[[i]],1:2]
+            liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],0,cur_par[6],cur_par[7],incl_rho))
+          }
+          return(liktot)
+        }
+        optim.out2=optim(par=cur_par[c(3,4)],g2,control=list(maxit=1000))
+        cur_par[c(3,4)]=optim.out2$par
+      }
+      cat("Iter ",i,": mu_s =",cur_par[1],"; mu_w =",cur_par[2],"; sd_s =",cur_par[3],"; sd_w =",cur_par[4],"; rho =",cur_par[5],"; lambda_s =",cur_par[6],"; lambda_w =",cur_par[7],"\n")
+      if(sum((prev_par-cur_par)^2)<tol){
+        break
+      }else{
+        prev_par=cur_par
+      }
     }
+    return(cur_par)
   }
-  return(cur_par)
 }
 
-mle.out=FindParamMLEs(outmat_mod,anchor_t,incl_rho=FALSE)
+mle.out=FindParamMLEs(outmat_mod,anchor_t,incl_rho=FALSE,twostage=FALSE)
 ```
 
     ## Identifying good initial model parameters...
-    ## Numerical optimization (using optim) until convergence (maxiter= 20 ):
-    ## Iter  1 : mu_s = 24.2816 ; mu_w = 33.18183 ; sd_s = 0.974664 ; sd_w = 0.9723235 ; rho = 0 ; lambda_s = 1.406986 ; lambda_w = 4.921006 
-    ## Iter  2 : mu_s = 24.2816 ; mu_w = 33.1823 ; sd_s = 0.9746456 ; sd_w = 0.9722013 ; rho = 0 ; lambda_s = 1.410163 ; lambda_w = 4.857333 
-    ## Iter  3 : mu_s = 24.2816 ; mu_w = 33.18248 ; sd_s = 0.9746455 ; sd_w = 0.9722016 ; rho = 0 ; lambda_s = 1.479092 ; lambda_w = 4.911341 
-    ## Iter  4 : mu_s = 24.2816 ; mu_w = 33.18247 ; sd_s = 0.9746455 ; sd_w = 0.9722016 ; rho = 0 ; lambda_s = 1.47634 ; lambda_w = 4.908354
 
 The maximum likelihood estimates and the interpretations of the model
 parameters are:
@@ -557,11 +580,11 @@ cat(paste(" Avg. time to sleep = ",sleep_t," (+/- ",round(mle.out[3],1)," hour)\
 ,(paste("Rate (per hour) of frequency of phone use while awake = ", round(mle.out[7],5),"\n",sep="")))
 ```
 
-    ##  Avg. time to sleep = 0:16 (+/- 1 hour)
-    ##  Avg. time to wake  = 9:10 (+/- 1 hour)
+    ##  Avg. time to sleep = 1:22 (+/- 0.3 hour)
+    ##  Avg. time to wake  = 8:44 (+/- 0.4 hour)
     ##  Correlation between time to sleep and time to wake = 0
-    ##  Rate (per hour) of frequency of phone use while asleep = 1.47634
-    ##  Rate (per hour) of frequency of phone use while awake = 4.90835
+    ##  Rate (per hour) of frequency of phone use while asleep = 1.7383
+    ##  Rate (per hour) of frequency of phone use while awake = 4.69463
 
 ### Estimating bed times and wake up times for each day
 
@@ -619,13 +642,13 @@ xest_orig
 ```
 
     ##                bedtime        wake-up time
-    ## 1  03/04/2019 00:33:29 03/04/2019 09:52:24
-    ## 2  03/05/2019 00:29:19 03/05/2019 10:51:48
-    ## 3  03/06/2019 01:09:28 03/06/2019 09:18:40
-    ## 4  03/07/2019 00:20:45 03/07/2019 09:00:45
-    ## 5  03/08/2019 00:53:45 03/08/2019 09:13:59
-    ## 6  03/09/2019 00:40:10 03/09/2019 08:49:52
-    ## 7  03/10/2019 01:02:17 03/10/2019 09:03:40
-    ## 8  03/11/2019 00:17:50 03/11/2019 08:57:04
-    ## 9  03/11/2019 23:51:31 03/12/2019 08:43:01
-    ## 10 03/12/2019 23:52:44 03/13/2019 09:00:08
+    ## 1  03/04/2019 01:16:55 03/04/2019 08:46:33
+    ## 2  03/05/2019 01:09:00 03/05/2019 08:58:20
+    ## 3  03/06/2019 01:31:39 03/06/2019 08:17:20
+    ## 4  03/07/2019 01:24:33 03/07/2019 08:40:37
+    ## 5  03/08/2019 01:29:08 03/08/2019 09:04:05
+    ## 6  03/09/2019 01:29:57 03/09/2019 08:59:23
+    ## 7  03/10/2019 01:32:03 03/10/2019 09:09:55
+    ## 8  03/11/2019 01:10:05 03/11/2019 08:37:59
+    ## 9  03/12/2019 01:15:10 03/12/2019 08:49:47
+    ## 10 03/13/2019 01:10:26 03/13/2019 08:38:51

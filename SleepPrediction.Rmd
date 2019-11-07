@@ -404,7 +404,7 @@ GridSearchInitPars = function(mat_mod,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_
 }
 
 
-FindParamMLEs = function(dat,anchor_t,incl_rho=FALSE,maxiter=20,init_par=NULL,tol=.0001){
+FindParamMLEs = function(dat,anchor_t,incl_rho=FALSE,twostage=FALSE,maxiter=20,init_par=NULL,tol=.0001){
   labels=unique(dat[,3])
   ls_ids = list()
   for(i in 1:length(labels)){
@@ -420,53 +420,82 @@ FindParamMLEs = function(dat,anchor_t,incl_rho=FALSE,maxiter=20,init_par=NULL,to
     init_par = GridSearchInitPars(dat,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_s0,lambda_w0,incl_rho)
   }
   cur_par=init_par
-  prev_par=cur_par
-  cat("Numerical optimization (using optim) until convergence (maxiter=",maxiter,"):\n")
-  for(i in 1:maxiter){
-    g1=function(par_v){
-      liktot=0
-      for(i in 1:length(labels)){
-        mat=dat[ls_ids[[i]],1:2]
-        liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],cur_par[3],cur_par[4],cur_par[5],par_v[3],par_v[4],incl_rho))
-      }
-      return(liktot)
-    }
-    optim.out1=optim(par=cur_par[c(1,2,6,7)],g1,control=list(maxit=1000))
-    cur_par[c(1,2,6,7)]=optim.out1$par
+  #### no iteration approach
+  if(!twostage){
     if(incl_rho){
-      g2=function(par_v){
+      g3 = function(par_v){
         liktot=0
         for(i in 1:length(labels)){
           mat=dat[ls_ids[[i]],1:2]
-          liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],par_v[3],cur_par[6],cur_par[7],incl_rho))
+          liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],par_v[3],par_v[4],par_v[5],par_v[6],par_v[7],incl_rho))
         }
         return(liktot)
       }
-      optim.out2=optim(par=cur_par[c(3,4,5)],g2,control=list(maxit=1000))
-      cur_par[c(3,4,5)]=optim.out2$par
+      optim.out3=optim(par=cur_par[c(1,2,3,4,5,6,7)],g3,control=list(maxit=1000))
+      cur_par[c(1,2,3,4,5,6,7)]=optim.out3$par
     }else{
-      g2=function(par_v){
+      g3 = function(par_v){
         liktot=0
         for(i in 1:length(labels)){
           mat=dat[ls_ids[[i]],1:2]
-          liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],0,cur_par[6],cur_par[7],incl_rho))
+          liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],par_v[3],par_v[4],0,par_v[5],par_v[6],incl_rho))
         }
         return(liktot)
       }
-      optim.out2=optim(par=cur_par[c(3,4)],g2,control=list(maxit=1000))
-      cur_par[c(3,4)]=optim.out2$par
+      optim.out3=optim(par=cur_par[c(1,2,3,4,6,7)],g3,control=list(maxit=1000))
+      cur_par[c(1,2,3,4,6,7)]=optim.out3$par
     }
-    cat("Iter ",i,": mu_s =",cur_par[1],"; mu_w =",cur_par[2],"; sd_s =",cur_par[3],"; sd_w =",cur_par[4],"; rho =",cur_par[5],"; lambda_s =",cur_par[6],"; lambda_w =",cur_par[7],"\n")
-    if(sum((prev_par-cur_par)^2)<tol){
-      break
-    }else{
-      prev_par=cur_par
+    return(cur_par)
+  }else{
+    ### iteration approach
+    prev_par=cur_par
+    cat("Numerical optimization (using optim) until convergence (maxiter=",maxiter,"):\n")
+    for(i in 1:maxiter){
+      g1=function(par_v){
+        liktot=0
+        for(i in 1:length(labels)){
+          mat=dat[ls_ids[[i]],1:2]
+          liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],cur_par[3],cur_par[4],cur_par[5],par_v[3],par_v[4],incl_rho))
+        }
+        return(liktot)
+      }
+      optim.out1=optim(par=cur_par[c(1,2,6,7)],g1,control=list(maxit=1000))
+      cur_par[c(1,2,6,7)]=optim.out1$par
+      if(incl_rho){
+        g2=function(par_v){
+          liktot=0
+          for(i in 1:length(labels)){
+            mat=dat[ls_ids[[i]],1:2]
+            liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],par_v[3],cur_par[6],cur_par[7],incl_rho))
+          }
+          return(liktot)
+        }
+        optim.out2=optim(par=cur_par[c(3,4,5)],g2,control=list(maxit=1000))
+        cur_par[c(3,4,5)]=optim.out2$par
+      }else{
+        g2=function(par_v){
+          liktot=0
+          for(i in 1:length(labels)){
+            mat=dat[ls_ids[[i]],1:2]
+            liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],0,cur_par[6],cur_par[7],incl_rho))
+          }
+          return(liktot)
+        }
+        optim.out2=optim(par=cur_par[c(3,4)],g2,control=list(maxit=1000))
+        cur_par[c(3,4)]=optim.out2$par
+      }
+      cat("Iter ",i,": mu_s =",cur_par[1],"; mu_w =",cur_par[2],"; sd_s =",cur_par[3],"; sd_w =",cur_par[4],"; rho =",cur_par[5],"; lambda_s =",cur_par[6],"; lambda_w =",cur_par[7],"\n")
+      if(sum((prev_par-cur_par)^2)<tol){
+        break
+      }else{
+        prev_par=cur_par
+      }
     }
+    return(cur_par)
   }
-  return(cur_par)
 }
 
-mle.out=FindParamMLEs(outmat_mod,anchor_t,incl_rho=FALSE)
+mle.out=FindParamMLEs(outmat_mod,anchor_t,incl_rho=FALSE,twostage=FALSE)
 
 ```
 

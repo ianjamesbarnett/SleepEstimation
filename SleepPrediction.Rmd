@@ -95,8 +95,8 @@ Mod2Orig = function(tmat,d0,format="%m/%d/%Y %H:%M:%S",tz="EST"){
   tmat_out = matrix(NA,nrow=nrow(tmat),ncol=2)
   t0=as.POSIXct(paste(d0,"00:00:00",sep=" "),tz=tz,format)
   for(i in 1:nrow(tmat)){
-    tmat_out[i,1]=strftime(as.POSIXct(as.numeric(t0)+60*60*(tmat[i,1]+24*tmat[i,3]),tz=tz,origin="1970-01-01"),tz="EST",format)
-    tmat_out[i,2]=strftime(as.POSIXct(as.numeric(t0)+60*60*(tmat[i,2]+24*tmat[i,3]),tz=tz,origin="1970-01-01"),tz="EST",format)
+    tmat_out[i,1]=strftime(as.POSIXct(as.numeric(t0)+60*60*(tmat[i,1]+24*(tmat[i,3]-1)),tz=tz,origin="1970-01-01"),tz="EST",format)
+    tmat_out[i,2]=strftime(as.POSIXct(as.numeric(t0)+60*60*(tmat[i,2]+24*(tmat[i,3]-1)),tz=tz,origin="1970-01-01"),tz="EST",format)
   }
   return(data.frame(t0=tmat_out[,1],t1=tmat_out[,2],stringsAsFactors=F))
 }
@@ -150,7 +150,22 @@ The time to bed *x_s* and time to wake *x_w* is unknown for each night of follow
 ## points -- number of points
 ## interlim -- maximum number of Newton-Raphson iterations
 
+library(Rcpp)
+library(RcppArmadillo)
 library(mvtnorm)
+sourceCpp("C:/Users/Ian/Dropbox/SleepScreenOnOff/SleepEstimation/LSE_fast.cpp")
+#sourceCpp("C:/Users/ibarnett/Dropbox/SleepScreenOnOff/SleepEstimation/LSE_fast.cpp")
+
+#Jean-Louis et al. 1996, 20-34 y.o.
+#POP_AVG_DUR = 391/60
+#POP_SD_DUR = 57/60
+
+# From figure 1 of Has Adult Sleep Duration Declined Over the Last 50+ Years? (Youngstedt et al. 2016)
+# 440 at 20 y.o., 375 at 80 y.o.
+AVG_AGE=20
+POP_AVG_DUR=(-(65/60)*(AVG_AGE-20)+440)/60
+#POP_SD_DUR = 71.59/60
+POP_SD_DUR = 53.2
 
 hermite <- function (points, z) {
   p1 <- 1/pi^0.4
@@ -179,6 +194,7 @@ gauss.hermite <- function (points, iterlim = 50) {
       z1 <- z
       p <- hermite(points, z)
       z <- z1 - p[1]/p[2]
+  #    cat(z-z1,"\n")
       if (abs(z - z1) <= 1e-15) 
         break
     }
@@ -272,6 +288,21 @@ IndLik = function(t_init,wt,xs,xw,lambda_s,lambda_w,mu_s,mu_w){
 }
 
 
+JointLikSum = function(mat,x_s,x_w,lambda_s,lambda_w,mu_s,mu_w,loglik){
+  if(loglik){
+    t1=0
+    for(i in 1:nrow(mat)){
+      t1=t1+log(IndLik(mat[i,1],mat[i,2]-mat[i,1],x_s,x_w,lambda_s,lambda_w,mu_s,mu_w))
+    }
+  }else{
+    t1=1
+    for(i in 1:nrow(mat)){
+      t1=t1*IndLik(mat[i,1],mat[i,2]-mat[i,1],x_s,x_w,lambda_s,lambda_w,mu_s,mu_w)
+    }
+  }
+  return(t1)
+}
+
 JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,INCL_DENSITY=FALSE,loglik=FALSE,incl_rho=FALSE){
   if(x_s>x_w){
     if(loglik){
@@ -281,17 +312,8 @@ JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,
     }
   }
   if(!is.null(nrow(mat)) && nrow(mat)>0){
-    if(loglik){
-      t1=0
-      for(i in 1:nrow(mat)){
-        t1=t1+log(IndLik(mat[i,1],mat[i,2]-mat[i,1],x_s,x_w,lambda_s,lambda_w,mu_s,mu_w))
-      }
-    }else{
-      t1=1
-      for(i in 1:nrow(mat)){
-        t1=t1*IndLik(mat[i,1],mat[i,2]-mat[i,1],x_s,x_w,lambda_s,lambda_w,mu_s,mu_w)
-      }
-    }
+    t1=JointLikSum_C(mat,x_s,x_w,lambda_s,lambda_w,mu_s,mu_w,loglik)
+#    t1=JointLikSum(mat,x_s,x_w,lambda_s,lambda_w,mu_s,mu_w,loglik)
   }else{
     if(loglik){
       t1=0
@@ -341,8 +363,8 @@ MargLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,incl_rho,
   }else{
     Sigma=matrix(c(sigma_s^2,0,0,sigma_w^2),nrow=2,byrow=T)
   }
-  ghout=mgauss.hermite(10,c(mu_s,mu_w),Sigma)
-  return(sum(ghout$weights*unlist(lapply(1:nrow(ghout$points),function(xx) JointLik(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,ghout$points[xx,1],ghout$points[xx,2],loglik,incl_rho)))))
+  ghout=mgauss.hermite(n=3,c(mu_s,mu_w),Sigma) # n=points is the number of quadrature points per dimesion
+  return(sum(ghout$weights*unlist(lapply(1:nrow(ghout$points),function(xx) JointLik(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,ghout$points[xx,1],ghout$points[xx,2],loglik=loglik,incl_rho=incl_rho)))))
 }
 
 
@@ -371,6 +393,7 @@ InitialParameters = function(mat_mod,anchor_t){
 }
 
 
+
 GridSearchInitPars = function(mat_mod,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_s0,lambda_w0,incl_rho){
   sd_s_v = c(.25,.5,1)
   sd_w_v = c(.25,.5,1)
@@ -385,6 +408,7 @@ GridSearchInitPars = function(mat_mod,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_
       mat=mat_mod[ls_ids[[i]],1:2]
       liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],par_v[3],par_v[4],par_v[5],par_v[6],par_v[7],incl_rho))
     }
+    liktot=liktot-log(dnorm(abs(par_v[2]-par_v[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
     return(liktot)
   }
   minval=Inf
@@ -404,7 +428,26 @@ GridSearchInitPars = function(mat_mod,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_
 }
 
 
-FindParamMLEs = function(dat,anchor_t,incl_rho=FALSE,twostage=FALSE,maxiter=20,init_par=NULL,tol=.0001){
+GetIndSleepEstimates =function(mat_mod,mle.out){
+  labels=unique(mat_mod[,3])
+  ls_ids = list()
+  for(i in 1:length(labels)){
+    ls_ids[[i]]=which(mat_mod[,3]==i)
+  }
+  xmat = matrix(NA,nrow=length(labels),ncol=3)
+  for(i in 1:length(labels)){
+    mat=mat_mod[ls_ids[[i]],1:2]
+    g3=function(par_v){
+      return(-log(JointLik(mat,mle.out[1],mle.out[2],mle.out[3],mle.out[4],mle.out[5],mle.out[6],mle.out[7],par_v[1],par_v[2],INCL_DENSITY=TRUE)))
+    }
+    optim.out3=optim(par=mle.out[1:2],g3,control=list(maxit=1000))
+    xmat[i,]=c(optim.out3$par,labels[i])
+  }
+  return(xmat)
+}
+
+
+FindParamMLEs = function(dat,anchor_t,incl_rho=TRUE,maxiter=20,init_par=NULL,tol=.0001){
   labels=unique(dat[,3])
   ls_ids = list()
   for(i in 1:length(labels)){
@@ -418,84 +461,64 @@ FindParamMLEs = function(dat,anchor_t,incl_rho=FALSE,twostage=FALSE,maxiter=20,i
     lambda_s0=init_pars4[3]
     lambda_w0=init_pars4[4]
     init_par = GridSearchInitPars(dat,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_s0,lambda_w0,incl_rho)
+    init_par[5]=0 # start with rho=0
   }
   cur_par=init_par
-  #### no iteration approach
-  if(!twostage){
+  prev_par=cur_par
+  cat("Numerical optimization (using optim) until convergence (maxiter=",maxiter,"):\n")
+  for(i in 1:maxiter){
+    g1=function(par_v){
+      liktot=0
+      for(i in 1:length(labels)){
+        mat=dat[ls_ids[[i]],1:2]
+        liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],cur_par[3],cur_par[4],cur_par[5],par_v[3],par_v[4],incl_rho))
+      }
+      liktot=liktot-log(dnorm(abs(par_v[2]-par_v[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
+      return(liktot)
+    }
+    optim.out1=optim(par=cur_par[c(1,2,6,7)],g1,control=list(maxit=1000))
+    cur_par[c(1,2,6,7)]=optim.out1$par
     if(incl_rho){
-      g3 = function(par_v){
+      g2=function(par_v){
         liktot=0
         for(i in 1:length(labels)){
           mat=dat[ls_ids[[i]],1:2]
-          liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],par_v[3],par_v[4],par_v[5],par_v[6],par_v[7],incl_rho))
+          liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],cur_par[5],cur_par[6],cur_par[7],incl_rho))
         }
+        liktot=liktot-log(dnorm(abs(cur_par[2]-cur_par[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
         return(liktot)
       }
-      optim.out3=optim(par=cur_par[c(1,2,3,4,5,6,7)],g3,control=list(maxit=1000))
-      cur_par[c(1,2,3,4,5,6,7)]=optim.out3$par
+      optim.out2=optim(par=cur_par[c(3,4)],g2,control=list(maxit=1000))
+      cur_par[c(3,4)]=optim.out2$par
+      if(i==1){
+        cursleepest = GetIndSleepEstimates(dat,cur_par)
+        wt1=min(c(1,1-(30-nrow(cursleepest))/30))
+        cur_par[5]= max(0,wt1*cor(cursleepest[,1:2])[1,2])
+      }
     }else{
-      g3 = function(par_v){
+      g2=function(par_v){
         liktot=0
         for(i in 1:length(labels)){
           mat=dat[ls_ids[[i]],1:2]
-          liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],par_v[3],par_v[4],0,par_v[5],par_v[6],incl_rho))
+          liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],0,cur_par[6],cur_par[7],incl_rho))
         }
+        liktot=liktot-log(dnorm(abs(cur_par[2]-cur_par[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
         return(liktot)
       }
-      optim.out3=optim(par=cur_par[c(1,2,3,4,6,7)],g3,control=list(maxit=1000))
-      cur_par[c(1,2,3,4,6,7)]=optim.out3$par
+      optim.out2=optim(par=cur_par[c(3,4)],g2,control=list(maxit=1000))
+      cur_par[c(3,4)]=optim.out2$par
     }
-    return(cur_par)
-  }else{
-    ### iteration approach
-    prev_par=cur_par
-    cat("Numerical optimization (using optim) until convergence (maxiter=",maxiter,"):\n")
-    for(i in 1:maxiter){
-      g1=function(par_v){
-        liktot=0
-        for(i in 1:length(labels)){
-          mat=dat[ls_ids[[i]],1:2]
-          liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],cur_par[3],cur_par[4],cur_par[5],par_v[3],par_v[4],incl_rho))
-        }
-        return(liktot)
-      }
-      optim.out1=optim(par=cur_par[c(1,2,6,7)],g1,control=list(maxit=1000))
-      cur_par[c(1,2,6,7)]=optim.out1$par
-      if(incl_rho){
-        g2=function(par_v){
-          liktot=0
-          for(i in 1:length(labels)){
-            mat=dat[ls_ids[[i]],1:2]
-            liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],par_v[3],cur_par[6],cur_par[7],incl_rho))
-          }
-          return(liktot)
-        }
-        optim.out2=optim(par=cur_par[c(3,4,5)],g2,control=list(maxit=1000))
-        cur_par[c(3,4,5)]=optim.out2$par
-      }else{
-        g2=function(par_v){
-          liktot=0
-          for(i in 1:length(labels)){
-            mat=dat[ls_ids[[i]],1:2]
-            liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],0,cur_par[6],cur_par[7],incl_rho))
-          }
-          return(liktot)
-        }
-        optim.out2=optim(par=cur_par[c(3,4)],g2,control=list(maxit=1000))
-        cur_par[c(3,4)]=optim.out2$par
-      }
-      cat("Iter ",i,": mu_s =",cur_par[1],"; mu_w =",cur_par[2],"; sd_s =",cur_par[3],"; sd_w =",cur_par[4],"; rho =",cur_par[5],"; lambda_s =",cur_par[6],"; lambda_w =",cur_par[7],"\n")
-      if(sum((prev_par-cur_par)^2)<tol){
-        break
-      }else{
-        prev_par=cur_par
-      }
+    cat("Iter ",i,": mu_s =",cur_par[1],"; mu_w =",cur_par[2],"; sd_s =",cur_par[3],"; sd_w =",cur_par[4],"; rho =",cur_par[5],"; lambda_s =",cur_par[6],"; lambda_w =",cur_par[7],"\n")
+    if(sum((prev_par-cur_par)^2)<tol){
+      break
+    }else{
+      prev_par=cur_par
     }
-    return(cur_par)
   }
+  return(cur_par)
 }
 
-mle.out=FindParamMLEs(outmat_mod,anchor_t,incl_rho=FALSE,twostage=FALSE)
+mle.out=FindParamMLEs(outmat_mod,anchor_t)
 
 ```
 
@@ -527,34 +550,7 @@ cat(paste(" Avg. time to sleep = ",sleep_t," (+/- ",round(mle.out[3],1)," hour)\
 
 Now that the model parameters have been estimated, we can maximize the joint density function of a) the bed times (*x_s*), b) the wake-up times (*x_w*), and c) the screen on/off data, with respect to the *x_s* and *x_w*. These will be our bed time and wake-up time estimates for each individual night. The rationale for maximizing the joint likelihood is that the distribution of the *x_s* and *x_w* will pull estimates towards *mu_s* and *mu_w*, respectively, while the distribution of the screen on/off data will pull bedtime and wake-up estimates towards the data fit. This way if there is very little data, then bedtime and wake-up estimates will be close to *mu_s* and *mu_w*, while more data will allow us to trust the data more and estimates will reflect that. This balance is ideal for situations where sparse data may be present.
 
-The R function to find these estimates are here:
-
-
-
-```{r}
-
-GetIndSleepEstimates =function(mat_mod,mle.out){
-  labels=unique(mat_mod[,3])
-  ls_ids = list()
-  for(i in 1:length(labels)){
-    ls_ids[[i]]=which(mat_mod[,3]==i)
-  }
-  xmat = matrix(NA,nrow=length(labels),ncol=3)
-  for(i in 1:length(labels)){
-    mat=mat_mod[ls_ids[[i]],1:2]
-    g3=function(par_v){
-      return(-JointLik(mat,mle.out[1],mle.out[2],mle.out[3],mle.out[4],mle.out[5],mle.out[6],mle.out[7],par_v[1],par_v[2],INCL_DENSITY=TRUE,loglik=TRUE))
-    }
-    optim.out3=optim(par=mle.out[1:2],g3,control=list(maxit=1000))
-    xmat[i,]=c(optim.out3$par,labels[i])
-  }
-  return(xmat)
-}
-
-```
-
-
-Let's run this function on our simulated data (*outmat_mod*) using the parameter MLEs (*mle.out*) we just estimated as input.
+Let's run the function GetIndSleepEstimates on our simulated data (*outmat_mod*) using the parameter MLEs (*mle.out*) we just estimated as input.
 ```{r}
 xest=GetIndSleepEstimates(outmat_mod,mle.out)
 ```

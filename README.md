@@ -139,36 +139,36 @@ head(outmat_orig)
 ```
 
     ##                    t0                  t1
-    ## 1 03/02/2019 15:00:00 03/02/2019 15:03:47
-    ## 2 03/02/2019 15:03:47 03/02/2019 15:04:48
-    ## 3 03/02/2019 15:04:48 03/02/2019 15:10:58
-    ## 4 03/02/2019 15:10:58 03/02/2019 15:26:40
-    ## 5 03/02/2019 15:26:40 03/02/2019 15:27:35
-    ## 6 03/02/2019 15:27:35 03/02/2019 15:29:45
+    ## 1 03/02/2019 15:00:00 03/02/2019 15:19:11
+    ## 2 03/02/2019 15:19:11 03/02/2019 15:38:34
+    ## 3 03/02/2019 15:38:34 03/02/2019 15:42:20
+    ## 4 03/02/2019 15:42:20 03/02/2019 15:46:14
+    ## 5 03/02/2019 15:46:14 03/02/2019 15:51:19
+    ## 6 03/02/2019 15:51:19 03/02/2019 16:10:36
 
 ``` r
 head(outmat_mod)
 ```
 
     ##          [,1]     [,2] [,3]
-    ## [1,] 15.00000 15.06331    1
-    ## [2,] 15.06331 15.08023    1
-    ## [3,] 15.08023 15.18303    1
-    ## [4,] 15.18303 15.44452    1
-    ## [5,] 15.44452 15.45982    1
-    ## [6,] 15.45982 15.49599    1
+    ## [1,] 15.00000 15.31988    1
+    ## [2,] 15.31988 15.64286    1
+    ## [3,] 15.64286 15.70571    1
+    ## [4,] 15.70571 15.77066    1
+    ## [5,] 15.77066 15.85537    1
+    ## [6,] 15.85537 16.17685    1
 
 ``` r
 head(compare_to_outmat_mod)
 ```
 
     ##          [,1]     [,2] [,3]
-    ## [1,] 15.00000 15.06306    1
-    ## [2,] 15.06306 15.08000    1
-    ## [3,] 15.08000 15.18278    1
-    ## [4,] 15.18278 15.44444    1
-    ## [5,] 15.44444 15.45972    1
-    ## [6,] 15.45972 15.49583    1
+    ## [1,] 15.00000 15.31972    1
+    ## [2,] 15.31972 15.64278    1
+    ## [3,] 15.64278 15.70556    1
+    ## [4,] 15.70556 15.77056    1
+    ## [5,] 15.77056 15.85528    1
+    ## [6,] 15.85528 16.17667    1
 
 To see what the resulting data looks
 like:
@@ -220,8 +220,8 @@ sourceCpp("C:/Users/Ian/Dropbox/SleepScreenOnOff/SleepEstimation/LSE_fast.cpp")
 # 440 at 20 y.o., 375 at 80 y.o.
 AVG_AGE=20
 POP_AVG_DUR=(-(65/60)*(AVG_AGE-20)+440)/60
-#POP_SD_DUR = 71.59/60
-POP_SD_DUR = 53.2
+POP_SD_DUR = 71.59/60
+#POP_SD_DUR = 53.2/60
 
 hermite <- function (points, z) {
   p1 <- 1/pi^0.4
@@ -469,7 +469,7 @@ GridSearchInitPars = function(mat_mod,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_
       mat=mat_mod[ls_ids[[i]],1:2]
       liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],par_v[3],par_v[4],par_v[5],par_v[6],par_v[7],incl_rho))
     }
-    liktot=liktot-log(dnorm(abs(par_v[2]-par_v[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
+    liktot=liktot-length(labels)*log(dnorm(abs(par_v[2]-par_v[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
     return(liktot)
   }
   minval=Inf
@@ -534,7 +534,7 @@ FindParamMLEs = function(dat,anchor_t,incl_rho=TRUE,maxiter=20,init_par=NULL,tol
         mat=dat[ls_ids[[i]],1:2]
         liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],cur_par[3],cur_par[4],cur_par[5],par_v[3],par_v[4],incl_rho))
       }
-      liktot=liktot-log(dnorm(abs(par_v[2]-par_v[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
+      liktot=liktot-length(labels)*log(dnorm(abs(par_v[2]-par_v[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
       return(liktot)
     }
     optim.out1=optim(par=cur_par[c(1,2,6,7)],g1,control=list(maxit=1000))
@@ -546,7 +546,7 @@ FindParamMLEs = function(dat,anchor_t,incl_rho=TRUE,maxiter=20,init_par=NULL,tol
           mat=dat[ls_ids[[i]],1:2]
           liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],cur_par[5],cur_par[6],cur_par[7],incl_rho))
         }
-        liktot=liktot-log(dnorm(abs(cur_par[2]-cur_par[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
+        liktot=liktot-length(labels)*log(dnorm(abs(cur_par[2]-cur_par[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
         return(liktot)
       }
       optim.out2=optim(par=cur_par[c(3,4)],g2,control=list(maxit=1000))
@@ -563,7 +563,7 @@ FindParamMLEs = function(dat,anchor_t,incl_rho=TRUE,maxiter=20,init_par=NULL,tol
           mat=dat[ls_ids[[i]],1:2]
           liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],0,cur_par[6],cur_par[7],incl_rho))
         }
-        liktot=liktot-log(dnorm(abs(cur_par[2]-cur_par[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
+        liktot=liktot-length(labels)*log(dnorm(abs(cur_par[2]-cur_par[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
         return(liktot)
       }
       optim.out2=optim(par=cur_par[c(3,4)],g2,control=list(maxit=1000))
@@ -584,8 +584,9 @@ mle.out=FindParamMLEs(outmat_mod,anchor_t)
 
     ## Identifying good initial model parameters...
     ## Numerical optimization (using optim) until convergence (maxiter= 20 ):
-    ## Iter  1 : mu_s = 25.06653 ; mu_w = 32.78289 ; sd_s = 1.115679 ; sd_w = 0.9906585 ; rho = 0 ; lambda_s = 1.819188 ; lambda_w = 5.012012 
-    ## Iter  2 : mu_s = 25.06653 ; mu_w = 32.7829 ; sd_s = 1.115679 ; sd_w = 0.9906585 ; rho = 0 ; lambda_s = 1.819199 ; lambda_w = 5.012014
+    ## Iter  1 : mu_s = 25.61265 ; mu_w = 32.80326 ; sd_s = 1.101514 ; sd_w = 1.015234 ; rho = 0.01133644 ; lambda_s = 1.764966 ; lambda_w = 4.976604 
+    ## Iter  2 : mu_s = 25.59182 ; mu_w = 32.80326 ; sd_s = 1.089453 ; sd_w = 1.01939 ; rho = 0.01133644 ; lambda_s = 1.619661 ; lambda_w = 5.075202 
+    ## Iter  3 : mu_s = 25.59182 ; mu_w = 32.80326 ; sd_s = 1.089453 ; sd_w = 1.01939 ; rho = 0.01133644 ; lambda_s = 1.61966 ; lambda_w = 5.075208
 
 The maximum likelihood estimates and the interpretations of the model
 parameters are:
@@ -612,11 +613,11 @@ cat(paste(" Avg. time to sleep = ",sleep_t," (+/- ",round(mle.out[3],1)," hour)\
 ,(paste("Rate (per hour) of frequency of phone use while awake = ", round(mle.out[7],5),"\n",sep="")))
 ```
 
-    ##  Avg. time to sleep = 1:03 (+/- 1.1 hour)
-    ##  Avg. time to wake  = 8:46 (+/- 1 hour)
-    ##  Correlation between time to sleep and time to wake = 0
-    ##  Rate (per hour) of frequency of phone use while asleep = 1.8192
-    ##  Rate (per hour) of frequency of phone use while awake = 5.01201
+    ##  Avg. time to sleep = 1:35 (+/- 1.1 hour)
+    ##  Avg. time to wake  = 8:48 (+/- 1 hour)
+    ##  Correlation between time to sleep and time to wake = 0.01
+    ##  Rate (per hour) of frequency of phone use while asleep = 1.61966
+    ##  Rate (per hour) of frequency of phone use while awake = 5.07521
 
 ### Estimating bed times and wake up times for each day
 
@@ -653,13 +654,13 @@ xest_orig
 ```
 
     ##                bedtime        wake-up time
-    ## 1  03/03/2019 00:20:59 03/03/2019 08:47:22
-    ## 2  03/04/2019 00:26:16 03/04/2019 10:11:54
-    ## 3  03/05/2019 01:06:20 03/05/2019 08:40:55
-    ## 4  03/06/2019 00:54:38 03/06/2019 08:51:40
-    ## 5  03/06/2019 23:38:11 03/07/2019 08:40:41
-    ## 6  03/08/2019 01:55:34 03/08/2019 08:35:25
-    ## 7  03/09/2019 00:59:20 03/09/2019 09:00:21
-    ## 8  03/10/2019 00:41:54 03/10/2019 08:52:18
-    ## 9  03/11/2019 00:15:33 03/11/2019 10:32:16
-    ## 10 03/12/2019 01:02:07 03/12/2019 08:23:30
+    ## 1  03/03/2019 01:30:35 03/03/2019 08:48:17
+    ## 2  03/04/2019 01:12:59 03/04/2019 08:17:14
+    ## 3  03/05/2019 01:33:44 03/05/2019 08:51:07
+    ## 4  03/06/2019 01:30:04 03/06/2019 08:52:48
+    ## 5  03/07/2019 01:00:40 03/07/2019 08:48:11
+    ## 6  03/08/2019 01:02:45 03/08/2019 09:49:01
+    ## 7  03/09/2019 00:23:52 03/09/2019 08:49:36
+    ## 8  03/10/2019 01:46:52 03/10/2019 08:19:56
+    ## 9  03/11/2019 01:36:45 03/11/2019 09:01:12
+    ## 10 03/12/2019 01:26:13 03/12/2019 09:49:26

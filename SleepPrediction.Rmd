@@ -164,8 +164,8 @@ sourceCpp("C:/Users/Ian/Dropbox/SleepScreenOnOff/SleepEstimation/LSE_fast.cpp")
 # 440 at 20 y.o., 375 at 80 y.o.
 AVG_AGE=20
 POP_AVG_DUR=(-(65/60)*(AVG_AGE-20)+440)/60
-#POP_SD_DUR = 71.59/60
-POP_SD_DUR = 53.2
+POP_SD_DUR = 71.59/60
+#POP_SD_DUR = 53.2/60
 
 hermite <- function (points, z) {
   p1 <- 1/pi^0.4
@@ -408,7 +408,7 @@ GridSearchInitPars = function(mat_mod,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_
       mat=mat_mod[ls_ids[[i]],1:2]
       liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],par_v[3],par_v[4],par_v[5],par_v[6],par_v[7],incl_rho))
     }
-    liktot=liktot-log(dnorm(abs(par_v[2]-par_v[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
+    liktot=liktot-length(labels)*log(dnorm(abs(par_v[2]-par_v[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
     return(liktot)
   }
   minval=Inf
@@ -473,7 +473,7 @@ FindParamMLEs = function(dat,anchor_t,incl_rho=TRUE,maxiter=20,init_par=NULL,tol
         mat=dat[ls_ids[[i]],1:2]
         liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],cur_par[3],cur_par[4],cur_par[5],par_v[3],par_v[4],incl_rho))
       }
-      liktot=liktot-log(dnorm(abs(par_v[2]-par_v[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
+      liktot=liktot-length(labels)*log(dnorm(abs(par_v[2]-par_v[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
       return(liktot)
     }
     optim.out1=optim(par=cur_par[c(1,2,6,7)],g1,control=list(maxit=1000))
@@ -485,7 +485,7 @@ FindParamMLEs = function(dat,anchor_t,incl_rho=TRUE,maxiter=20,init_par=NULL,tol
           mat=dat[ls_ids[[i]],1:2]
           liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],cur_par[5],cur_par[6],cur_par[7],incl_rho))
         }
-        liktot=liktot-log(dnorm(abs(cur_par[2]-cur_par[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
+        liktot=liktot-length(labels)*log(dnorm(abs(cur_par[2]-cur_par[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
         return(liktot)
       }
       optim.out2=optim(par=cur_par[c(3,4)],g2,control=list(maxit=1000))
@@ -502,7 +502,7 @@ FindParamMLEs = function(dat,anchor_t,incl_rho=TRUE,maxiter=20,init_par=NULL,tol
           mat=dat[ls_ids[[i]],1:2]
           liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],0,cur_par[6],cur_par[7],incl_rho))
         }
-        liktot=liktot-log(dnorm(abs(cur_par[2]-cur_par[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
+        liktot=liktot-length(labels)*log(dnorm(abs(cur_par[2]-cur_par[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
         return(liktot)
       }
       optim.out2=optim(par=cur_par[c(3,4)],g2,control=list(maxit=1000))

@@ -139,36 +139,36 @@ head(outmat_orig)
 ```
 
     ##                    t0                  t1
-    ## 1 03/02/2019 15:00:00 03/02/2019 15:19:11
-    ## 2 03/02/2019 15:19:11 03/02/2019 15:38:34
-    ## 3 03/02/2019 15:38:34 03/02/2019 15:42:20
-    ## 4 03/02/2019 15:42:20 03/02/2019 15:46:14
-    ## 5 03/02/2019 15:46:14 03/02/2019 15:51:19
-    ## 6 03/02/2019 15:51:19 03/02/2019 16:10:36
+    ## 1 03/02/2019 15:00:00 03/02/2019 15:22:32
+    ## 2 03/02/2019 15:22:32 03/02/2019 15:37:55
+    ## 3 03/02/2019 15:37:55 03/02/2019 15:41:09
+    ## 4 03/02/2019 15:41:09 03/02/2019 15:48:05
+    ## 5 03/02/2019 15:48:05 03/02/2019 16:17:11
+    ## 6 03/02/2019 16:17:11 03/02/2019 16:25:47
 
 ``` r
 head(outmat_mod)
 ```
 
     ##          [,1]     [,2] [,3]
-    ## [1,] 15.00000 15.31988    1
-    ## [2,] 15.31988 15.64286    1
-    ## [3,] 15.64286 15.70571    1
-    ## [4,] 15.70571 15.77066    1
-    ## [5,] 15.77066 15.85537    1
-    ## [6,] 15.85537 16.17685    1
+    ## [1,] 15.00000 15.37575    1
+    ## [2,] 15.37575 15.63210    1
+    ## [3,] 15.63210 15.68586    1
+    ## [4,] 15.68586 15.80143    1
+    ## [5,] 15.80143 16.28659    1
+    ## [6,] 16.28659 16.42989    1
 
 ``` r
 head(compare_to_outmat_mod)
 ```
 
     ##          [,1]     [,2] [,3]
-    ## [1,] 15.00000 15.31972    1
-    ## [2,] 15.31972 15.64278    1
-    ## [3,] 15.64278 15.70556    1
-    ## [4,] 15.70556 15.77056    1
-    ## [5,] 15.77056 15.85528    1
-    ## [6,] 15.85528 16.17667    1
+    ## [1,] 15.00000 15.37556    1
+    ## [2,] 15.37556 15.63194    1
+    ## [3,] 15.63194 15.68583    1
+    ## [4,] 15.68583 15.80139    1
+    ## [5,] 15.80139 16.28639    1
+    ## [6,] 16.28639 16.42972    1
 
 To see what the resulting data looks
 like:
@@ -310,6 +310,7 @@ by the boolean *incl\_rho* parameter in the FindParamMLEs function, with
 a default value of false.
 
 ``` r
+# throws errors if lambda_s or lambda_w are 0.
 IndLik = function(t_init,wt,xs,xw,lambda_s,lambda_w,mu_s,mu_w){
   if(t_init+wt>mu_s+24){ # return pr(t_init+wt>mu_s+24) instead of density
     if(t_init<xs){
@@ -348,7 +349,6 @@ IndLik = function(t_init,wt,xs,xw,lambda_s,lambda_w,mu_s,mu_w){
   }
 }
 
-
 JointLikSum = function(mat,x_s,x_w,lambda_s,lambda_w,mu_s,mu_w,loglik){
   if(loglik){
     t1=0
@@ -363,6 +363,7 @@ JointLikSum = function(mat,x_s,x_w,lambda_s,lambda_w,mu_s,mu_w,loglik){
   }
   return(t1)
 }
+
 
 JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,INCL_DENSITY=FALSE,loglik=FALSE,incl_rho=FALSE){
   if(x_s>x_w){
@@ -405,7 +406,7 @@ JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,
 
 
 MargLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,incl_rho,loglik=FALSE){
-  if( mu_s> mu_w || sigma_s<0 || sigma_w<0 || abs(rho)>1 || lambda_s<0 || lambda_w <0 || lambda_s > lambda_w){
+  if( mu_s> mu_w || sigma_s<=0 || sigma_w<=0 || abs(rho)>1 || lambda_s<=0 || lambda_w <=0 || lambda_s > lambda_w){
     if(loglik){
       return(-Inf)
     } else{
@@ -430,6 +431,7 @@ MargLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,incl_rho,
 
 
 InitialParameters = function(mat_mod,anchor_t){
+  MIN_LAMBDA = .00001 # smallest value lambda can be
   itrvl_len_v = seq(6,9,.5)
   out_ls=list()
   ratio_v = rep(NA,length(itrvl_len_v))
@@ -445,14 +447,13 @@ InitialParameters = function(mat_mod,anchor_t){
     mu_w0=mu_s0+itrvl_len
     # find rate during average sleep and average waking interval
     ndays= length(unique(mat_mod[,3]))
-    lambda_s0=(min(frac_vals)*nrow(mat_mod)/ndays)/itrvl_len
-    lambda_w0=((1-min(frac_vals))*nrow(mat_mod)/ndays)/(24-itrvl_len)
+    lambda_s0=max(c((min(frac_vals)*nrow(mat_mod)/ndays)/itrvl_len,MIN_LAMBDA))
+    lambda_w0=max(c(((1-min(frac_vals))*nrow(mat_mod)/ndays)/(24-itrvl_len),MIN_LAMBDA))
     out_ls[[j]]=list(mu_s0,mu_w0,lambda_s0,lambda_w0)
     ratio_v[j]=lambda_s0/lambda_w0
   }
   return(unlist(out_ls[[order(ratio_v)[1]]]))
 }
-
 
 
 GridSearchInitPars = function(mat_mod,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_s0,lambda_w0,incl_rho){
@@ -506,7 +507,7 @@ GetIndSleepEstimates =function(mat_mod,mle.out){
   }
   return(xmat)
 }
-
+       
 
 FindParamMLEs = function(dat,anchor_t,incl_rho=TRUE,maxiter=20,init_par=NULL,tol=.0001){
   labels=unique(dat[,3])
@@ -554,7 +555,11 @@ FindParamMLEs = function(dat,anchor_t,incl_rho=TRUE,maxiter=20,init_par=NULL,tol
       if(i==1){
         cursleepest = GetIndSleepEstimates(dat,cur_par)
         wt1=min(c(1,1-(30-nrow(cursleepest))/30))
-        cur_par[5]= max(0,wt1*cor(cursleepest[,1:2])[1,2])
+        if(nrow(cursleepest)<3){
+          cur_par[5]=0
+        }else{
+          cur_par[5]= max(0,wt1*cor(cursleepest[,1:2])[1,2])
+        }
       }
     }else{
       g2=function(par_v){
@@ -584,9 +589,10 @@ mle.out=FindParamMLEs(outmat_mod,anchor_t)
 
     ## Identifying good initial model parameters...
     ## Numerical optimization (using optim) until convergence (maxiter= 20 ):
-    ## Iter  1 : mu_s = 25.61265 ; mu_w = 32.80326 ; sd_s = 1.101514 ; sd_w = 1.015234 ; rho = 0.01133644 ; lambda_s = 1.764966 ; lambda_w = 4.976604 
-    ## Iter  2 : mu_s = 25.59182 ; mu_w = 32.80326 ; sd_s = 1.089453 ; sd_w = 1.01939 ; rho = 0.01133644 ; lambda_s = 1.619661 ; lambda_w = 5.075202 
-    ## Iter  3 : mu_s = 25.59182 ; mu_w = 32.80326 ; sd_s = 1.089453 ; sd_w = 1.01939 ; rho = 0.01133644 ; lambda_s = 1.61966 ; lambda_w = 5.075208
+    ## Iter  1 : mu_s = 24.97487 ; mu_w = 32.63248 ; sd_s = 0.9241458 ; sd_w = 0.9414374 ; rho = 0.07453951 ; lambda_s = 1.883727 ; lambda_w = 4.868258 
+    ## Iter  2 : mu_s = 24.95844 ; mu_w = 32.63252 ; sd_s = 0.959512 ; sd_w = 0.8895995 ; rho = 0.07453951 ; lambda_s = 1.879281 ; lambda_w = 4.885033 
+    ## Iter  3 : mu_s = 24.95847 ; mu_w = 32.63252 ; sd_s = 0.9595119 ; sd_w = 0.8895994 ; rho = 0.07453951 ; lambda_s = 1.791241 ; lambda_w = 4.919442 
+    ## Iter  4 : mu_s = 24.95844 ; mu_w = 32.63252 ; sd_s = 0.9595119 ; sd_w = 0.8895994 ; rho = 0.07453951 ; lambda_s = 1.79099 ; lambda_w = 4.920001
 
 The maximum likelihood estimates and the interpretations of the model
 parameters are:
@@ -613,11 +619,11 @@ cat(paste(" Avg. time to sleep = ",sleep_t," (+/- ",round(mle.out[3],1)," hour)\
 ,(paste("Rate (per hour) of frequency of phone use while awake = ", round(mle.out[7],5),"\n",sep="")))
 ```
 
-    ##  Avg. time to sleep = 1:35 (+/- 1.1 hour)
-    ##  Avg. time to wake  = 8:48 (+/- 1 hour)
-    ##  Correlation between time to sleep and time to wake = 0.01
-    ##  Rate (per hour) of frequency of phone use while asleep = 1.61966
-    ##  Rate (per hour) of frequency of phone use while awake = 5.07521
+    ##  Avg. time to sleep = 0:57 (+/- 1 hour)
+    ##  Avg. time to wake  = 8:37 (+/- 0.9 hour)
+    ##  Correlation between time to sleep and time to wake = 0.07
+    ##  Rate (per hour) of frequency of phone use while asleep = 1.79099
+    ##  Rate (per hour) of frequency of phone use while awake = 4.92
 
 ### Estimating bed times and wake up times for each day
 
@@ -654,13 +660,13 @@ xest_orig
 ```
 
     ##                bedtime        wake-up time
-    ## 1  03/03/2019 01:30:35 03/03/2019 08:48:17
-    ## 2  03/04/2019 01:12:59 03/04/2019 08:17:14
-    ## 3  03/05/2019 01:33:44 03/05/2019 08:51:07
-    ## 4  03/06/2019 01:30:04 03/06/2019 08:52:48
-    ## 5  03/07/2019 01:00:40 03/07/2019 08:48:11
-    ## 6  03/08/2019 01:02:45 03/08/2019 09:49:01
-    ## 7  03/09/2019 00:23:52 03/09/2019 08:49:36
-    ## 8  03/10/2019 01:46:52 03/10/2019 08:19:56
-    ## 9  03/11/2019 01:36:45 03/11/2019 09:01:12
-    ## 10 03/12/2019 01:26:13 03/12/2019 09:49:26
+    ## 1  03/03/2019 00:40:41 03/03/2019 08:40:16
+    ## 2  03/03/2019 23:54:07 03/04/2019 09:29:56
+    ## 3  03/05/2019 01:52:13 03/05/2019 09:16:16
+    ## 4  03/06/2019 01:03:29 03/06/2019 08:41:22
+    ## 5  03/07/2019 01:55:36 03/07/2019 09:26:56
+    ## 6  03/08/2019 00:31:59 03/08/2019 08:58:11
+    ## 7  03/09/2019 01:29:28 03/09/2019 08:58:06
+    ## 8  03/10/2019 00:41:38 03/10/2019 08:48:27
+    ## 9  03/11/2019 00:19:41 03/11/2019 08:39:54
+    ## 10 03/12/2019 00:57:05 03/12/2019 08:42:14

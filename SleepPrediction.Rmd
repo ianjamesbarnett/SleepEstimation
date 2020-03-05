@@ -249,6 +249,7 @@ Next, we write the likelihood function and use Hermite-Gauss quadrature to perfo
 
 ```{r}
 
+# throws errors if lambda_s or lambda_w are 0.
 IndLik = function(t_init,wt,xs,xw,lambda_s,lambda_w,mu_s,mu_w){
   if(t_init+wt>mu_s+24){ # return pr(t_init+wt>mu_s+24) instead of density
     if(t_init<xs){
@@ -287,7 +288,6 @@ IndLik = function(t_init,wt,xs,xw,lambda_s,lambda_w,mu_s,mu_w){
   }
 }
 
-
 JointLikSum = function(mat,x_s,x_w,lambda_s,lambda_w,mu_s,mu_w,loglik){
   if(loglik){
     t1=0
@@ -302,6 +302,7 @@ JointLikSum = function(mat,x_s,x_w,lambda_s,lambda_w,mu_s,mu_w,loglik){
   }
   return(t1)
 }
+
 
 JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,INCL_DENSITY=FALSE,loglik=FALSE,incl_rho=FALSE){
   if(x_s>x_w){
@@ -344,7 +345,7 @@ JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,
 
 
 MargLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,incl_rho,loglik=FALSE){
-  if( mu_s> mu_w || sigma_s<0 || sigma_w<0 || abs(rho)>1 || lambda_s<0 || lambda_w <0 || lambda_s > lambda_w){
+  if( mu_s> mu_w || sigma_s<=0 || sigma_w<=0 || abs(rho)>1 || lambda_s<=0 || lambda_w <=0 || lambda_s > lambda_w){
     if(loglik){
       return(-Inf)
     } else{
@@ -369,6 +370,7 @@ MargLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,incl_rho,
 
 
 InitialParameters = function(mat_mod,anchor_t){
+  MIN_LAMBDA = .00001 # smallest value lambda can be
   itrvl_len_v = seq(6,9,.5)
   out_ls=list()
   ratio_v = rep(NA,length(itrvl_len_v))
@@ -384,14 +386,13 @@ InitialParameters = function(mat_mod,anchor_t){
     mu_w0=mu_s0+itrvl_len
     # find rate during average sleep and average waking interval
     ndays= length(unique(mat_mod[,3]))
-    lambda_s0=(min(frac_vals)*nrow(mat_mod)/ndays)/itrvl_len
-    lambda_w0=((1-min(frac_vals))*nrow(mat_mod)/ndays)/(24-itrvl_len)
+    lambda_s0=max(c((min(frac_vals)*nrow(mat_mod)/ndays)/itrvl_len,MIN_LAMBDA))
+    lambda_w0=max(c(((1-min(frac_vals))*nrow(mat_mod)/ndays)/(24-itrvl_len),MIN_LAMBDA))
     out_ls[[j]]=list(mu_s0,mu_w0,lambda_s0,lambda_w0)
     ratio_v[j]=lambda_s0/lambda_w0
   }
   return(unlist(out_ls[[order(ratio_v)[1]]]))
 }
-
 
 
 GridSearchInitPars = function(mat_mod,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_s0,lambda_w0,incl_rho){
@@ -445,7 +446,7 @@ GetIndSleepEstimates =function(mat_mod,mle.out){
   }
   return(xmat)
 }
-
+       
 
 FindParamMLEs = function(dat,anchor_t,incl_rho=TRUE,maxiter=20,init_par=NULL,tol=.0001){
   labels=unique(dat[,3])
@@ -493,7 +494,11 @@ FindParamMLEs = function(dat,anchor_t,incl_rho=TRUE,maxiter=20,init_par=NULL,tol
       if(i==1){
         cursleepest = GetIndSleepEstimates(dat,cur_par)
         wt1=min(c(1,1-(30-nrow(cursleepest))/30))
-        cur_par[5]= max(0,wt1*cor(cursleepest[,1:2])[1,2])
+        if(nrow(cursleepest)<3){
+          cur_par[5]=0
+        }else{
+          cur_par[5]= max(0,wt1*cor(cursleepest[,1:2])[1,2])
+        }
       }
     }else{
       g2=function(par_v){

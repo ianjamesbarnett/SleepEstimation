@@ -31,7 +31,7 @@ lambda_w = 5
 mu_s = 1
 mu_w = 8.5
 sd_s = .5
-sd_w = 1
+sd_w = .25
 init_t = 15
 anchor_t=14
 d0="3/2/2019" ## d0 is the first day of follow-up. If you have your own data, set d0 equal to the date of first data.
@@ -160,6 +160,91 @@ trap_quad_points = function(numpts){
   return(list('pts'=pts,'wts'=wts))
 }
 
+cpar=truepar
+ppar=truepar
+ppar = c(1,3,10,18,2,.5)
+cpar=ppar
+
+Likelihood =function(dat,cpar){
+  labels=unique(dat[,3])
+  ls_ids = list()
+  for(i in 1:length(labels)){
+    ls_ids[[i]]=which(dat[,3]==i)
+  }
+  liktot=0
+  for(i in 1:length(labels)){
+    mat=dat[ls_ids[[i]],1:2]
+    liktot=liktot+QuadratureIntegral(mat,cpar,cpar,d=5)
+    # for(j in 1:nrow(mat)){
+    #   likcur = d_w_cond_x(t_init=mat[j,1],wt=mat[j,2]-mat[j,1],xs=cpar[3],xw=cpar[4],cpar[1],cpar[2],cpar[3],cpar[4])
+    #   liktot=log(likcur)+liktot
+    # }
+  }
+  #Bayesian prior on sleep duration
+  return(liktot)
+}
+
+ppar = c(1,3,10,18,2,.5)
+Likelihood(dat,ppar)
+truepar = c(1.5,5,25,32.5,.5,.25)
+Likelihood(dat,truepar)
+
+
+exppar = c(1,3,25,32.5,2,.5)
+Likelihood(dat,exppar)
+
+#par order : lambda_s,lambda_w,mu_s,mu_w,sd_s,sd_w
+QuadratureIntegral = function(mat,cpar,ppar,d){
+  n_i=nrow(mat)
+  quad_out=trap_quad_points(d)
+  lik_wcondx = matrix(NA,nrow=d^2,ncol=n_i)
+  Smat = matrix(NA,nrow=d^2,ncol=n_i)
+  Smat[,1]=quad_out$wts
+  for(j in 1:n_i){
+    for(i in 1:d^2){
+      lik_wcondx[i,j]=d_w_cond_x(t_init=mat[j,1],wt=mat[j,2]-mat[j,1],xs=quad_out$pts[i,1]*cpar[5]+cpar[3],xw=quad_out$pts[i,2]*cpar[6]+cpar[4],cpar[1],cpar[2],cpar[3],cpar[4])
+      if(j==1){
+        Smat[i,j]=d_w_cond_x(t_init=mat[j,1],wt=mat[j,2]-mat[j,1],xs=quad_out$pts[i,1]*ppar[5]+ppar[3],xw=quad_out$pts[i,2]*ppar[6]+ppar[4],ppar[1],ppar[2],ppar[3],ppar[4])*quad_out$wts[i]
+      }else{
+        Smat[i,j]=d_w_cond_x(t_init=mat[j,1],wt=mat[j,2]-mat[j,1],xs=quad_out$pts[i,1]*ppar[5]+ppar[3],xw=quad_out$pts[i,2]*ppar[6]+ppar[4],ppar[1],ppar[2],ppar[3],ppar[4])*Smat[i,j-1]
+      }
+    }
+    Smat[,j] = Smat[,j]/max(Smat[,j])
+  }
+  r = Smat[,n_i]
+  r = r/sum(r)
+  logintegrand_p1=rowSums(log(lik_wcondx))+n_i*log(apply(dnorm(quad_out$pts),1,prod))
+  return(sum(r*logintegrand_p1))
+#  return(list('qpts'=quad_out$pts,'r'=r))
+}
+QuadratureIntegral(mat,truepar,truepar,d)
+
+
+#par order : lambda_s,lambda_w,mu_s,mu_w,sd_s,sd_w
+Q = function(dat,cpar,ppar,anchor_t,d=3,POP_AVG_DUR=8,POP_SD_DUR=1){
+  labels=unique(dat[,3])
+  ls_ids = list()
+  for(i in 1:length(labels)){
+    ls_ids[[i]]=which(dat[,3]==i)
+  }
+  liktot=0
+  for(i in 1:length(labels)){
+    mat=dat[ls_ids[[i]],1:2]
+    QIW_out=QuadratureIntegral(mat,cpar,ppar,d)
+    liktot=QIW_out+liktot
+  }
+  #Bayesian prior on sleep duration
+  liktot=liktot+log(dnorm(abs(cpar[4]-cpar[3]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
+  return(liktot)
+}
+
+
+# t_init=mat[j,1];wt=mat[j,2]-mat[j,1];xs=ppar[3];xw=ppar[4];lambda_s=cpar[1];lambda_w=cpar[2];mu_s=ppar[3];mu_w=ppar[4]
+# t_init=mat[j,1];wt=mat[j,2]-mat[j,1];xs=truepar[3];xw=truepar[4];lambda_s=cpar[1];lambda_w=cpar[2];mu_s=truepar[3];mu_w=truepar[4]
+# 
+# d_w_cond_x(t_init,wt,xs,xw,lambda_s,lambda_w,mu_s,mu_w)
+
+
 d_w_cond_x = function(t_init,wt,xs,xw,lambda_s,lambda_w,mu_s,mu_w){
   if(xs>=xw || lambda_s <=0 || lambda_w <= 0 || mu_s >= mu_w){return(0)}
   if(t_init<xs){
@@ -177,138 +262,69 @@ d_w_cond_x = function(t_init,wt,xs,xw,lambda_s,lambda_w,mu_s,mu_w){
   return(numer/denom)
 }
 
+# d_w_cond_x = function(t_init,wt,xs,xw,lambda_s,lambda_w,mu_s,mu_w){
+#   if(xs>=xw || lambda_s <=0 || lambda_w <= 0 || mu_s >= mu_w){return(0)}
+#   if(t_init+wt>mu_s+24){ # return pr(t_init+wt>mu_s+24) instead of density
+#     if(t_init<xs){
+#       denom=1-exp(-lambda_w*(xs-t_init))+exp(-lambda_s*(xs-t_init))-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+#       numer=(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+#       return(numer/denom)
+#     }else if(t_init<xw){
+#       denom=1-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+#       numer=(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+#       return(numer/denom)
+#     }else{
+#       denom=1-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+#       numer=(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+#       return(numer/denom)
+#     }
+#   }
+#   if(t_init<xs){
+#     denom=1-exp(-lambda_w*(xs-t_init))+exp(-lambda_s*(xs-t_init))-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+#     if(t_init+wt<xs){
+#       return(lambda_w*exp(-lambda_w*(wt))/denom)
+#     }else if(t_init+wt<xw){
+#       return(lambda_s*exp(-lambda_w*(xs-t_init)-lambda_s*(t_init+wt-xs))/denom)
+#     }else{
+#       return(lambda_w*exp(-lambda_w*(xs-t_init)-lambda_s*(xw-xs)-lambda_w*(t_init+wt-xw))/denom)
+#     }
+#   }else if(t_init<xw){
+#     denom=1-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+#     if(t_init+wt<xw){
+#       return(lambda_s*exp(-lambda_s*(wt))/denom)
+#     }else{
+#       return(lambda_w*exp(-lambda_s*(xw-t_init)-lambda_w*(t_init+wt-xw))/denom)    
+#     }
+#   }else{
+#     denom=1-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
+#     return(lambda_w*exp(-lambda_w*(wt))/denom)
+#   }
+# }
+
 
 #par order : lambda_s,lambda_w,mu_s,mu_w,sd_s,sd_w
-QuadratureIntegral = function(mat,cpar,d){
-  n_i=nrow(mat)
-  quad_out=trap_quad_points(d)
-  lik_wcondx = matrix(NA,nrow=d^2,ncol=n_i)
-  for(j in 1:n_i){
-    for(i in 1:d^2){
-      lik_wcondx[i,j]=d_w_cond_x(t_init=mat[j,1],wt=mat[j,2]-mat[j,1],xs=quad_out$pts[i,1]*cpar[5]+cpar[3],xw=quad_out$pts[i,2]*cpar[6]+cpar[4],cpar[1],cpar[2],cpar[3],cpar[4])
-    }
-  }
-  quad_scaled_w=quad_out$wts/(sum(quad_out$wts))
-  logintegrand_p1=sum(rowSums(log(lik_wcondx))*quad_scaled_w)
-  return(logintegrand_p1)
-}
-
-#par order : lambda_s,lambda_w,mu_s,mu_w,sd_s,sd_w
-LogLikelihood =function(dat,cpar,d){
-  labels=unique(dat[,3])
-  ls_ids = list()
-  for(i in 1:length(labels)){
-    ls_ids[[i]]=which(dat[,3]==i)
-  }
-  liktot=0
-  for(i in 1:length(labels)){
-    mat=dat[ls_ids[[i]],1:2]
-    liktot=liktot+QuadratureIntegral(mat,cpar,d=5)
-  }
-  #Bayesian prior on sleep duration
+EM_sleep_MLE = function(outmat_mod,anchor_t,d=3,maxiter=10){
   POP_AVG_DUR=8
   POP_SD_DUR=1
-  ###### SET GAMMA HERE ############
-  gamma=.5 #gamma can range from 0 to 1. 1/0 gives largest/smallest penalties from bayesian prior
-  ##################################
-  liktot=liktot+(length(labels)^gamma)*log(dnorm(abs(cpar[4]-cpar[3]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
-  #Bayesian prior on sd of time to sleep
-  liktot=liktot+(length(labels)^gamma)*log(dnorm(cpar[5],mean=1.2,sd=.5))
-  #Bayesian prior on sd of time to wake
-  liktot=liktot+(length(labels)^gamma)*log(dnorm(cpar[6],mean=1.2,sd=.5))
-  return(liktot)
-}
-
-InitialParameters = function(mat_mod,anchor_t=14){
-  MIN_LAMBDA = .00001 # smallest value lambda can be
-  itrvl_len_v = seq(6,9,.5)
-  out_ls=list()
-  ratio_v = rep(NA,length(itrvl_len_v))
-  # find mu_s0, mu_w0
-  for(j in 1:length(itrvl_len_v)){
-    itrvl_len=itrvl_len_v[j]
-    start_vals=seq(0,24-itrvl_len,.25)
-    frac_vals = rep(NA,length(start_vals))
-    for(i in 1:length(start_vals)){
-      frac_vals[i]=length(intersect(which(mat_mod[,1]>anchor_t+start_vals[i]),which(mat_mod[,1]<anchor_t+start_vals[i]+itrvl_len)))/nrow(mat_mod)
+  #ppar=InitParams(outmat_mod)
+  ppar = c(1,3,mu_s+24+2,mu_w+24+2,2,.5)
+  for(i in 1:maxiter){
+    g1=function(cpar){
+      return(-Q(outmat_mod,cpar,ppar,anchor_t,d,POP_AVG_DUR,POP_SD_DUR))
     }
-    mu_s0=start_vals[order(frac_vals)[1]]+anchor_t
-    mu_w0=mu_s0+itrvl_len
-    # find rate during average sleep and average waking interval
-    ndays= length(unique(mat_mod[,3]))
-    lambda_s0=max(c((min(frac_vals)*nrow(mat_mod)/ndays)/itrvl_len,MIN_LAMBDA))
-    lambda_w0=max(c(((1-min(frac_vals))*nrow(mat_mod)/ndays)/(24-itrvl_len),MIN_LAMBDA))
-    out_ls[[j]]=list(mu_s0,mu_w0,lambda_s0,lambda_w0)
-    ratio_v[j]=lambda_s0/lambda_w0
+    optim.out1=optim(par=ppar,g1,control=list(maxit=1000))
+    cat(optim.out1$par,"\n")
+    ppar = optim.out1$par
   }
-  return(unlist(out_ls[[order(ratio_v)[1]]]))
 }
 
-#par order : lambda_s,lambda_w,mu_s,mu_w,sd_s,sd_w
-GridSearchInitPars = function(mat_mod,mu_s0,mu_w0,lambda_s0,lambda_w0,d){
-  sd_s_v = c(.25,.5,1)
-  sd_w_v = c(.25,.5,1)
-  minval=-Inf
-  for(sd_s in sd_s_v){
-    for(sd_w in sd_w_v){
-      par_v=c(lambda_s0,lambda_w0,mu_s0,mu_w0,sd_s,sd_w)
-      curval=LogLikelihood(mat_mod,par_v,d)
-      if(curval>minval){
-        cur_par=par_v
-        minval=curval
-      }
-    }
-  }
-  return(par_v)
-}
+# optim.out1$par
+# truepar = c(lambda_s,lambda_w,mu_s+24,mu_w+24,sd_s,sd_w)
+# Q(outmat_mod,truepar,truepar)
+# Q(outmat_mod,optim.out1$par,optim.out1$par)
 
-#par order : lambda_s,lambda_w,mu_s,mu_w,sd_s,sd_w
-GetIndSleepEstimates =function(mat_mod,cpar){
-  labels=unique(mat_mod[,3])
-  ls_ids = list()
-  for(i in 1:length(labels)){
-    ls_ids[[i]]=which(mat_mod[,3]==i)
-  }
-  xmat = matrix(NA,nrow=length(labels),ncol=3)
-  for(i in 1:length(labels)){
-    mat=mat_mod[ls_ids[[i]],1:2]
-    g3=function(par_v){
-      tot=0
-      for(j in 1:nrow(mat)){
-        tot=tot-log(d_w_cond_x(t_init=mat[j,1],wt=mat[j,2]-mat[j,1],xs=par_v[1],xw=par_v[2],cpar[1],cpar[2],cpar[3],cpar[4]))
-      }
-      tot=tot-dnorm(par_v[1],cpar[3],cpar[5],log=TRUE)-dnorm(par_v[2],cpar[4],cpar[6],log=TRUE)
-      ##### PENALIZE SLEEP DURATION
-      IND_SD_DUR=1
-      ############ SET GAMMA HERE #################
-      gamma=0 #gamma can range from 0 to 1. 1/0 gives largest/smallest penalties
-      #############################################
-      tot=tot-(length(labels)^gamma)*dnorm(par_v[2]-par_v[1],mean=cpar[4]-cpar[3],IND_SD_DUR,log=TRUE)
-      ##### 
-      return(tot)
-    }
-    optim.out3=optim(par=cpar[3:4],g3,control=list(maxit=1000))
-    xmat[i,]=c(optim.out3$par,labels[i])
-  }
-  return(xmat)
-}
+EM_sleep_MLE(outmat_mod,anchor_t,d=3)
 
-
-
-#par order : lambda_s,lambda_w,mu_s,mu_w,sd_s,sd_w
-NumMaxLogLik = function(outmat_mod,anchor_t=14,d=3){
-  iparinit=InitialParameters(outmat_mod,anchor_t)
-  ipar=GridSearchInitPars(outmat_mod,mu_s0=iparinit[1],mu_w0=iparinit[2],lambda_s0=iparinit[3],lambda_w0=iparinit[4],d)
-#  ipar = c(1,3,mu_s+24+2,mu_w+24+2,2,.5)
-  g1=function(cpar){
-    return(-LogLikelihood(outmat_mod,cpar,d))
-  }
-  optim.out1=optim(par=ipar,g1,control=list(maxit=1000))
-  return(optim.out1$par)
-}
-
-
-mle.out=NumMaxLogLik(outmat_mod)
 
 ```
 

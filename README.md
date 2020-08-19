@@ -47,7 +47,7 @@ lambda_w = 5
 mu_s = 1
 mu_w = 8.5
 sd_s = .5
-sd_w = .25
+sd_w = 1
 init_t = 15
 anchor_t=14
 d0="3/2/2019" ## d0 is the first day of follow-up. If you have your own data, set d0 equal to the date of first data.
@@ -139,39 +139,38 @@ head(outmat_orig)
 ```
 
     ##                    t0                  t1
-    ## 1 03/02/2019 15:00:00 03/02/2019 15:22:32
-    ## 2 03/02/2019 15:22:32 03/02/2019 15:37:55
-    ## 3 03/02/2019 15:37:55 03/02/2019 15:41:09
-    ## 4 03/02/2019 15:41:09 03/02/2019 15:48:05
-    ## 5 03/02/2019 15:48:05 03/02/2019 16:17:11
-    ## 6 03/02/2019 16:17:11 03/02/2019 16:25:47
+    ## 1 03/02/2019 15:00:00 03/02/2019 15:06:34
+    ## 2 03/02/2019 15:06:34 03/02/2019 15:06:56
+    ## 3 03/02/2019 15:06:56 03/02/2019 15:12:54
+    ## 4 03/02/2019 15:12:54 03/02/2019 15:22:46
+    ## 5 03/02/2019 15:22:46 03/02/2019 15:24:00
+    ## 6 03/02/2019 15:24:00 03/02/2019 15:36:34
 
 ``` r
 head(outmat_mod)
 ```
 
     ##          [,1]     [,2] [,3]
-    ## [1,] 15.00000 15.37575    1
-    ## [2,] 15.37575 15.63210    1
-    ## [3,] 15.63210 15.68586    1
-    ## [4,] 15.68586 15.80143    1
-    ## [5,] 15.80143 16.28659    1
-    ## [6,] 16.28659 16.42989    1
+    ## [1,] 15.00000 15.10946    1
+    ## [2,] 15.10946 15.11576    1
+    ## [3,] 15.11576 15.21511    1
+    ## [4,] 15.21511 15.37955    1
+    ## [5,] 15.37955 15.40023    1
+    ## [6,] 15.40023 15.60945    1
 
 ``` r
 head(compare_to_outmat_mod)
 ```
 
     ##          [,1]     [,2] [,3]
-    ## [1,] 15.00000 15.37556    1
-    ## [2,] 15.37556 15.63194    1
-    ## [3,] 15.63194 15.68583    1
-    ## [4,] 15.68583 15.80139    1
-    ## [5,] 15.80139 16.28639    1
-    ## [6,] 16.28639 16.42972    1
+    ## [1,] 15.00000 15.10944    1
+    ## [2,] 15.10944 15.11556    1
+    ## [3,] 15.11556 15.21500    1
+    ## [4,] 15.21500 15.37944    1
+    ## [5,] 15.37944 15.40000    1
+    ## [6,] 15.40000 15.60944    1
 
-To see what the resulting data looks
-like:
+To see what the resulting data looks like:
 
 ``` r
 hist(outmat_mod[,1] %% 24,breaks=24,xlim=c(0,24),xlab="Hour of day",main="Frequency of screen on events")
@@ -193,109 +192,6 @@ we integrate over the conditional likelihood with respect to
 integral it can be done efficiently using Guassian quadrature, more
 specifically Gauss-Hermite quadrature. The code for this is here:
 
-``` r
-## perform quadrature of multivariate normal
-
-## compute Gauss-Hermite quadrature points and weights
-## for a one-dimensional integral.
-## points -- number of points
-## interlim -- maximum number of Newton-Raphson iterations
-
-library(Rcpp)
-library(RcppArmadillo)
-```
-
-    ## Warning: package 'RcppArmadillo' was built under R version 3.5.2
-
-``` r
-library(mvtnorm)
-sourceCpp("C:/Users/Ian/Dropbox/SleepScreenOnOff/SleepEstimation/LSE_fast.cpp")
-#sourceCpp("C:/Users/ibarnett/Dropbox/SleepScreenOnOff/SleepEstimation/LSE_fast.cpp")
-
-#Jean-Louis et al. 1996, 20-34 y.o.
-#POP_AVG_DUR = 391/60
-#POP_SD_DUR = 57/60
-
-# From figure 1 of Has Adult Sleep Duration Declined Over the Last 50+ Years? (Youngstedt et al. 2016)
-# 440 at 20 y.o., 375 at 80 y.o.
-AVG_AGE=20
-POP_AVG_DUR=(-(65/60)*(AVG_AGE-20)+440)/60
-POP_SD_DUR = 71.59/60
-#POP_SD_DUR = 53.2/60
-
-hermite <- function (points, z) {
-  p1 <- 1/pi^0.4
-  p2 <- 0
-  for (j in 1:points) {
-    p3 <- p2
-    p2 <- p1
-    p1 <- z * sqrt(2/j) * p2 - sqrt((j - 1)/j) * p3
-  }
-  pp <- sqrt(2 * points) * p2
-  c(p1, pp)
-}
-
-gauss.hermite <- function (points, iterlim = 50) {
-  x <- w <- rep(0, points)
-  m <- (points + 1)/2
-  for (i in 1:m) {
-    z <- if (i == 1) 
-      sqrt(2 * points + 1) - 2 * (2 * points + 1)^(-1/6)
-    else if (i == 2) 
-      z - sqrt(points)/z
-    else if (i == 3 || i == 4) 
-      1.9 * z - 0.9 * x[i - 2]
-    else 2 * z - x[i - 2]
-    for (j in 1:iterlim) {
-      z1 <- z
-      p <- hermite(points, z)
-      z <- z1 - p[1]/p[2]
-  #    cat(z-z1,"\n")
-      if (abs(z - z1) <= 1e-15) 
-        break
-    }
-    if (j == iterlim) 
-      warning("iteration limit exceeded")
-    x[points + 1 - i] <- -(x[i] <- z)
-    w[i] <- w[points + 1 - i] <- 2/p[2]^2
-  }
-  r <- cbind(x * sqrt(2), w/sum(w))
-  colnames(r) <- c("Points", "Weights")
-  r
-}
-
-
-## compute multivariate Gaussian quadrature points
-## n     - number of points each dimension before pruning
-## mu    - mean vector
-## sigma - covariance matrix
-## prune - NULL - no pruning; [0-1] - fraction to prune
-mgauss.hermite <- function(n, mu, sigma, prune=NULL) {
-  if(!all(dim(sigma) == length(mu)))
-    stop("mu and sigma have nonconformable dimensions")
-  
-  dm  <- length(mu)
-  gh  <- gauss.hermite(n)
-  #idx grows exponentially in n and dm
-  idx <- as.matrix(expand.grid(rep(list(1:n),dm)))
-  pts <- matrix(gh[idx,1],nrow(idx),dm)
-  wts <- apply(matrix(gh[idx,2],nrow(idx),dm), 1, prod)
-  
-  ## prune
-  if(!is.null(prune)) {
-    qwt <- quantile(wts, probs=prune)
-    pts <- pts[wts > qwt,]
-    wts <- wts[wts > qwt]
-  }
-  
-  ## rotate, scale, translate points
-  eig <- eigen(sigma) 
-  rot <- eig$vectors %*% diag(sqrt(eig$values))
-  pts <- t(rot %*% t(pts) + mu)
-  return(list(points=pts, weights=wts))
-}
-```
-
 ### Estimating model parameters
 
 Next, we write the likelihood function and use Hermite-Gauss quadrature
@@ -310,127 +206,77 @@ by the boolean *incl\_rho* parameter in the FindParamMLEs function, with
 a default value of false.
 
 ``` r
-# throws errors if lambda_s or lambda_w are 0.
-IndLik = function(t_init,wt,xs,xw,lambda_s,lambda_w,mu_s,mu_w){
-  if(t_init+wt>mu_s+24){ # return pr(t_init+wt>mu_s+24) instead of density
-    if(t_init<xs){
-      denom=1-exp(-lambda_w*(xs-t_init))+exp(-lambda_s*(xs-t_init))-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
-      numer=(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
-      return(numer/denom)
-    }else if(t_init<xw){
-      denom=1-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
-      numer=(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
-      return(numer/denom)
-    }else{
-      denom=1-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
-      numer=(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
-      return(numer/denom)
-    }
-  }
+trap_quad_points = function(numpts){
+  maxpt=qnorm(1-.5/numpts)
+  pts1=seq(from=-maxpt,to=maxpt,length.out=numpts)
+  wts1 = dnorm(pts1)
+  dx=2*maxpt/(numpts-1)
+  ptinds=as.matrix(expand.grid(rep(list(1:numpts),2)))
+  pts=matrix(pts1[ptinds],nrow(ptinds),2)
+  wts=apply(ptinds,1,function(xx) prod(wts1[xx])*dx*dx)
+  return(list('pts'=pts,'wts'=wts))
+}
+
+d_w_cond_x = function(t_init,wt,xs,xw,lambda_s,lambda_w,mu_s,mu_w){
+  if(xs>=xw || lambda_s <=0 || lambda_w <= 0 || mu_s >= mu_w){return(0)}
   if(t_init<xs){
-    denom=1-exp(-lambda_w*(xs-t_init))+exp(-lambda_s*(xs-t_init))-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
-    if(t_init+wt<xs){
-      return(lambda_w*exp(-lambda_w*(wt))/denom)
-    }else if(t_init+wt<xw){
-      return(lambda_s*exp(-lambda_w*(xs-t_init)-lambda_s*(t_init+wt-xs))/denom)
-    }else{
-      return(lambda_w*exp(-lambda_w*(xs-t_init)-lambda_s*(xw-xs)-lambda_w*(t_init+wt-xw))/denom)
-    }
+    denom = 1-exp(-lambda_w*(xs-t_init))+exp(-lambda_s*(xs-t_init))-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))
   }else if(t_init<xw){
-    denom=1-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init))-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
-    if(t_init+wt<xw){
-      return(lambda_s*exp(-lambda_s*(wt))/denom)
-    }else{
-      return(lambda_w*exp(-lambda_s*(xw-t_init)-lambda_w*(t_init+wt-xw))/denom)    
-    }
+    denom = 1-exp(-lambda_s*(xw-t_init))+exp(-lambda_w*(xw-t_init)) 
   }else{
-    denom=1-exp(-lambda_w*(mu_s+24-t_init))+(1/(1-exp(-lambda_s*24)))*(exp(-lambda_s*(mu_s+24-t_init))-exp(-lambda_s*(mu_w+24-t_init)))+(1/(1-exp(-lambda_w*24)))*(exp(-lambda_s*(mu_w+24-t_init))-exp(-lambda_w*(mu_w+48-t_init)))
-    return(lambda_w*exp(-lambda_w*(wt))/denom)
+    denom = 1
   }
-}
-
-JointLikSum = function(mat,x_s,x_w,lambda_s,lambda_w,mu_s,mu_w,loglik){
-  if(loglik){
-    t1=0
-    for(i in 1:nrow(mat)){
-      t1=t1+log(IndLik(mat[i,1],mat[i,2]-mat[i,1],x_s,x_w,lambda_s,lambda_w,mu_s,mu_w))
-    }
+  if(t_init+wt>xs && t_init+wt<xw){
+    numer= lambda_s*exp(-lambda_s*wt)
   }else{
-    t1=1
-    for(i in 1:nrow(mat)){
-      t1=t1*IndLik(mat[i,1],mat[i,2]-mat[i,1],x_s,x_w,lambda_s,lambda_w,mu_s,mu_w)
-    }
+    numer= lambda_w*exp(-lambda_w*wt)
   }
-  return(t1)
+  return(numer/denom)
 }
 
 
-JointLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,x_s,x_w,INCL_DENSITY=FALSE,loglik=FALSE,incl_rho=FALSE){
-  if(x_s>x_w){
-    if(loglik){
-      return(-Inf)
-    }else{
-      return(0)
+#par order : lambda_s,lambda_w,mu_s,mu_w,sd_s,sd_w
+QuadratureIntegral = function(mat,cpar,d){
+  n_i=nrow(mat)
+  quad_out=trap_quad_points(d)
+  lik_wcondx = matrix(NA,nrow=d^2,ncol=n_i)
+  for(j in 1:n_i){
+    for(i in 1:d^2){
+      lik_wcondx[i,j]=d_w_cond_x(t_init=mat[j,1],wt=mat[j,2]-mat[j,1],xs=quad_out$pts[i,1]*cpar[5]+cpar[3],xw=quad_out$pts[i,2]*cpar[6]+cpar[4],cpar[1],cpar[2],cpar[3],cpar[4])
     }
   }
-  if(!is.null(nrow(mat)) && nrow(mat)>0){
-    t1=JointLikSum_C(mat,x_s,x_w,lambda_s,lambda_w,mu_s,mu_w,loglik)
-#    t1=JointLikSum(mat,x_s,x_w,lambda_s,lambda_w,mu_s,mu_w,loglik)
-  }else{
-    if(loglik){
-      t1=0
-    }else{
-      t1=1
-    }
-  }
-  if(INCL_DENSITY){
-    if(!incl_rho){rho=0}
-    if(loglik){
-      t2=log(dmvnorm(c(x_s,x_w),mean = c(mu_s,mu_w), sigma= matrix(c(sigma_s^2,rho*sigma_s*sigma_w,rho*sigma_s*sigma_w,sigma_w^2),nrow=2,byrow=T)))
-    }else{
-      t2=dmvnorm(c(x_s,x_w),mean = c(mu_s,mu_w), sigma= matrix(c(sigma_s^2,rho*sigma_s*sigma_w,rho*sigma_s*sigma_w,sigma_w^2),nrow=2,byrow=T))
-    }
-  }else{
-    if(loglik){
-      t2=0
-    }else{
-      t2=1
-    }
-  }
-  if(loglik){
-    return(t1+t2)
-  }else{
-    return(t1*t2)
-  }
+  quad_scaled_w=quad_out$wts/(sum(quad_out$wts))
+  logintegrand_p1=sum(rowSums(log(lik_wcondx))*quad_scaled_w)
+  return(logintegrand_p1)
 }
 
-
-MargLik = function(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,incl_rho,loglik=FALSE){
-  if( mu_s> mu_w || sigma_s<=0 || sigma_w<=0 || abs(rho)>1 || lambda_s<=0 || lambda_w <=0 || lambda_s > lambda_w){
-    if(loglik){
-      return(-Inf)
-    } else{
-      return(0)
-    } 
+#par order : lambda_s,lambda_w,mu_s,mu_w,sd_s,sd_w
+LogLikelihood =function(dat,cpar,d){
+  labels=unique(dat[,3])
+  ls_ids = list()
+  for(i in 1:length(labels)){
+    ls_ids[[i]]=which(dat[,3]==i)
   }
-  if(is.null(nrow(mat)) || nrow(mat)==0){
-    if(loglik){
-      return(0)    
-    }else{
-      return(1)
-    }
+  liktot=0
+  for(i in 1:length(labels)){
+    mat=dat[ls_ids[[i]],1:2]
+    liktot=liktot+QuadratureIntegral(mat,cpar,d=5)
   }
-  if(incl_rho){
-    Sigma=matrix(c(sigma_s^2,rho*sigma_s*sigma_w,rho*sigma_s*sigma_w,sigma_w^2),nrow=2,byrow=T)
-  }else{
-    Sigma=matrix(c(sigma_s^2,0,0,sigma_w^2),nrow=2,byrow=T)
-  }
-  ghout=mgauss.hermite(n=3,c(mu_s,mu_w),Sigma) # n=points is the number of quadrature points per dimesion
-  return(sum(ghout$weights*unlist(lapply(1:nrow(ghout$points),function(xx) JointLik(mat,mu_s,mu_w,sigma_s,sigma_w,rho,lambda_s,lambda_w,ghout$points[xx,1],ghout$points[xx,2],loglik=loglik,incl_rho=incl_rho)))))
+  #Bayesian prior on sleep duration
+  POP_AVG_DUR=8
+  POP_SD_DUR=1
+  ###### SET GAMMA HERE ############
+  gamma=.5 #gamma can range from 0 to 1. 1/0 gives largest/smallest penalties from bayesian prior
+  ##################################
+  liktot=liktot+(length(labels)^gamma)*log(dnorm(abs(cpar[4]-cpar[3]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
+  #Bayesian prior on sd of time to sleep
+  liktot=liktot+(length(labels)^gamma)*log(dnorm(cpar[5],mean=1.2,sd=.5))
+  #Bayesian prior on sd of time to wake
+  liktot=liktot+(length(labels)^gamma)*log(dnorm(cpar[6],mean=1.2,sd=.5))
+  return(liktot)
 }
 
-
-InitialParameters = function(mat_mod,anchor_t){
+InitialParameters = function(mat_mod,anchor_t=14){
   MIN_LAMBDA = .00001 # smallest value lambda can be
   itrvl_len_v = seq(6,9,.5)
   out_ls=list()
@@ -455,42 +301,26 @@ InitialParameters = function(mat_mod,anchor_t){
   return(unlist(out_ls[[order(ratio_v)[1]]]))
 }
 
-
-GridSearchInitPars = function(mat_mod,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_s0,lambda_w0,incl_rho){
+#par order : lambda_s,lambda_w,mu_s,mu_w,sd_s,sd_w
+GridSearchInitPars = function(mat_mod,mu_s0,mu_w0,lambda_s0,lambda_w0,d){
   sd_s_v = c(.25,.5,1)
   sd_w_v = c(.25,.5,1)
-  if(incl_rho){
-    rho_v= c(0,.25,.5,.75)
-  }else{
-    rho_v=c(0)
-  }
-  g=function(par_v){
-    liktot=0
-    for(i in 1:length(labels)){
-      mat=mat_mod[ls_ids[[i]],1:2]
-      liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],par_v[3],par_v[4],par_v[5],par_v[6],par_v[7],incl_rho))
-    }
-    liktot=liktot-length(labels)*log(dnorm(abs(par_v[2]-par_v[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
-    return(liktot)
-  }
-  minval=Inf
+  minval=-Inf
   for(sd_s in sd_s_v){
     for(sd_w in sd_w_v){
-      for(rho in rho_v){
-        par_v=c(mu_s0,mu_w0,sd_s,sd_w,rho,lambda_s0,lambda_w0)
-        curval=g(par_v)
-        if(curval<minval){
-          cur_par=par_v
-          minval=curval
-        }
+      par_v=c(lambda_s0,lambda_w0,mu_s0,mu_w0,sd_s,sd_w)
+      curval=LogLikelihood(mat_mod,par_v,d)
+      if(curval>minval){
+        cur_par=par_v
+        minval=curval
       }
     }
   }
   return(par_v)
 }
 
-
-GetIndSleepEstimates =function(mat_mod,mle.out){
+#par order : lambda_s,lambda_w,mu_s,mu_w,sd_s,sd_w
+GetIndSleepEstimates =function(mat_mod,cpar){
   labels=unique(mat_mod[,3])
   ls_ids = list()
   for(i in 1:length(labels)){
@@ -500,130 +330,75 @@ GetIndSleepEstimates =function(mat_mod,mle.out){
   for(i in 1:length(labels)){
     mat=mat_mod[ls_ids[[i]],1:2]
     g3=function(par_v){
-      return(-log(JointLik(mat,mle.out[1],mle.out[2],mle.out[3],mle.out[4],mle.out[5],mle.out[6],mle.out[7],par_v[1],par_v[2],INCL_DENSITY=TRUE)))
+      tot=0
+      for(j in 1:nrow(mat)){
+        tot=tot-log(d_w_cond_x(t_init=mat[j,1],wt=mat[j,2]-mat[j,1],xs=par_v[1],xw=par_v[2],cpar[1],cpar[2],cpar[3],cpar[4]))
+      }
+      tot=tot-dnorm(par_v[1],cpar[3],cpar[5],log=TRUE)-dnorm(par_v[2],cpar[4],cpar[6],log=TRUE)
+      ##### PENALIZE SLEEP DURATION
+      IND_SD_DUR=1
+      ############ SET GAMMA HERE #################
+      gamma=0 #gamma can range from 0 to 1. 1/0 gives largest/smallest penalties
+      #############################################
+      tot=tot-(length(labels)^gamma)*dnorm(par_v[2]-par_v[1],mean=cpar[4]-cpar[3],IND_SD_DUR,log=TRUE)
+      ##### 
+      return(tot)
     }
-    optim.out3=optim(par=mle.out[1:2],g3,control=list(maxit=1000))
+    optim.out3=optim(par=cpar[3:4],g3,control=list(maxit=1000))
     xmat[i,]=c(optim.out3$par,labels[i])
   }
   return(xmat)
 }
-       
 
-FindParamMLEs = function(dat,anchor_t,incl_rho=TRUE,maxiter=20,init_par=NULL,tol=.0001){
-  labels=unique(dat[,3])
-  ls_ids = list()
-  for(i in 1:length(labels)){
-    ls_ids[[i]]=which(dat[,3]==i)
+
+
+#par order : lambda_s,lambda_w,mu_s,mu_w,sd_s,sd_w
+NumMaxLogLik = function(outmat_mod,anchor_t=14,d=3){
+  iparinit=InitialParameters(outmat_mod,anchor_t)
+  ipar=GridSearchInitPars(outmat_mod,mu_s0=iparinit[1],mu_w0=iparinit[2],lambda_s0=iparinit[3],lambda_w0=iparinit[4],d)
+#  ipar = c(1,3,mu_s+24+2,mu_w+24+2,2,.5)
+  g1=function(cpar){
+    return(-LogLikelihood(outmat_mod,cpar,d))
   }
-  if(is.null(init_par)){
-    cat("Identifying good initial model parameters...\n")
-    init_pars4=InitialParameters(dat,anchor_t)
-    mu_s0=init_pars4[1]
-    mu_w0=init_pars4[2]
-    lambda_s0=init_pars4[3]
-    lambda_w0=init_pars4[4]
-    init_par = GridSearchInitPars(dat,anchor_t,labels,ls_ids,mu_s0,mu_w0,lambda_s0,lambda_w0,incl_rho)
-    init_par[5]=0 # start with rho=0
-  }
-  cur_par=init_par
-  prev_par=cur_par
-  cat("Numerical optimization (using optim) until convergence (maxiter=",maxiter,"):\n")
-  for(i in 1:maxiter){
-    g1=function(par_v){
-      liktot=0
-      for(i in 1:length(labels)){
-        mat=dat[ls_ids[[i]],1:2]
-        liktot=liktot-log(MargLik(mat,par_v[1],par_v[2],cur_par[3],cur_par[4],cur_par[5],par_v[3],par_v[4],incl_rho))
-      }
-      liktot=liktot-length(labels)*log(dnorm(abs(par_v[2]-par_v[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
-      return(liktot)
-    }
-    optim.out1=optim(par=cur_par[c(1,2,6,7)],g1,control=list(maxit=1000))
-    cur_par[c(1,2,6,7)]=optim.out1$par
-    if(incl_rho){
-      g2=function(par_v){
-        liktot=0
-        for(i in 1:length(labels)){
-          mat=dat[ls_ids[[i]],1:2]
-          liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],cur_par[5],cur_par[6],cur_par[7],incl_rho))
-        }
-        liktot=liktot-length(labels)*log(dnorm(abs(cur_par[2]-cur_par[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
-        return(liktot)
-      }
-      optim.out2=optim(par=cur_par[c(3,4)],g2,control=list(maxit=1000))
-      cur_par[c(3,4)]=optim.out2$par
-      if(i==1){
-        cursleepest = GetIndSleepEstimates(dat,cur_par)
-        wt1=min(c(1,1-(30-nrow(cursleepest))/30))
-        if(nrow(cursleepest)<3){
-          cur_par[5]=0
-        }else{
-          cur_par[5]= max(0,wt1*cor(cursleepest[,1:2])[1,2])
-        }
-      }
-    }else{
-      g2=function(par_v){
-        liktot=0
-        for(i in 1:length(labels)){
-          mat=dat[ls_ids[[i]],1:2]
-          liktot=liktot-log(MargLik(mat,cur_par[1],cur_par[2],par_v[1],par_v[2],0,cur_par[6],cur_par[7],incl_rho))
-        }
-        liktot=liktot-length(labels)*log(dnorm(abs(cur_par[2]-cur_par[1]),mean=POP_AVG_DUR,sd=POP_SD_DUR))
-        return(liktot)
-      }
-      optim.out2=optim(par=cur_par[c(3,4)],g2,control=list(maxit=1000))
-      cur_par[c(3,4)]=optim.out2$par
-    }
-    cat("Iter ",i,": mu_s =",cur_par[1],"; mu_w =",cur_par[2],"; sd_s =",cur_par[3],"; sd_w =",cur_par[4],"; rho =",cur_par[5],"; lambda_s =",cur_par[6],"; lambda_w =",cur_par[7],"\n")
-    if(sum((prev_par-cur_par)^2)<tol){
-      break
-    }else{
-      prev_par=cur_par
-    }
-  }
-  return(cur_par)
+  optim.out1=optim(par=ipar,g1,control=list(maxit=1000))
+  return(optim.out1$par)
 }
 
-mle.out=FindParamMLEs(outmat_mod,anchor_t)
-```
 
-    ## Identifying good initial model parameters...
-    ## Numerical optimization (using optim) until convergence (maxiter= 20 ):
-    ## Iter  1 : mu_s = 24.97487 ; mu_w = 32.63248 ; sd_s = 0.9241458 ; sd_w = 0.9414374 ; rho = 0.07453951 ; lambda_s = 1.883727 ; lambda_w = 4.868258 
-    ## Iter  2 : mu_s = 24.95844 ; mu_w = 32.63252 ; sd_s = 0.959512 ; sd_w = 0.8895995 ; rho = 0.07453951 ; lambda_s = 1.879281 ; lambda_w = 4.885033 
-    ## Iter  3 : mu_s = 24.95847 ; mu_w = 32.63252 ; sd_s = 0.9595119 ; sd_w = 0.8895994 ; rho = 0.07453951 ; lambda_s = 1.791241 ; lambda_w = 4.919442 
-    ## Iter  4 : mu_s = 24.95844 ; mu_w = 32.63252 ; sd_s = 0.9595119 ; sd_w = 0.8895994 ; rho = 0.07453951 ; lambda_s = 1.79099 ; lambda_w = 4.920001
+mle.out=NumMaxLogLik(outmat_mod)
+```
 
 The maximum likelihood estimates and the interpretations of the model
 parameters are:
 
 ``` r
-sleep_t_h=floor(mle.out[1]%%24)
-sleep_t_m=floor((mle.out[1]%%24-floor(mle.out[1]%%24))*60)
+#par order : lambda_s,lambda_w,mu_s,mu_w,sd_s,sd_w
+
+sleep_t_h=floor(mle.out[3]%%24)
+sleep_t_m=floor((mle.out[3]%%24-floor(mle.out[3]%%24))*60)
 if(sleep_t_m<10){
   sleep_t=paste(sleep_t_h,":0",sleep_t_m,sep="")
 }else{
   sleep_t=paste(sleep_t_h,":",sleep_t_m,sep="")
 }
-wake_t_h=floor(mle.out[2]%%24)
-wake_t_m=floor((mle.out[2]%%24-floor(mle.out[2]%%24))*60)
+wake_t_h=floor(mle.out[4]%%24)
+wake_t_m=floor((mle.out[4]%%24-floor(mle.out[4]%%24))*60)
 if(wake_t_m<10){
   wake_t=paste(wake_t_h,":0",wake_t_m,sep="")
 }else{
   wake_t=paste(wake_t_h,":",wake_t_m,sep="")
 }
-cat(paste(" Avg. time to sleep = ",sleep_t," (+/- ",round(mle.out[3],1)," hour)\n",sep="")
-,(paste("Avg. time to wake  = ",wake_t," (+/- ",round(mle.out[4],1)," hour)\n",sep=""))
-,(paste("Correlation between time to sleep and time to wake = ",round(mle.out[5],2),"\n",sep=""))
-,(paste("Rate (per hour) of frequency of phone use while asleep = ", round(mle.out[6],5),"\n",sep=""))
-,(paste("Rate (per hour) of frequency of phone use while awake = ", round(mle.out[7],5),"\n",sep="")))
+cat(paste(" Avg. time to sleep = ",sleep_t," (+/- ",round(mle.out[5],1)," hour)\n",sep="")
+,(paste("Avg. time to wake  = ",wake_t," (+/- ",round(mle.out[6],1)," hour)\n",sep=""))
+#,(paste("Correlation between time to sleep and time to wake = ",round(mle.out[5],2),"\n",sep=""))
+,(paste("Rate (per hour) of frequency of phone use while asleep = ", round(mle.out[1],5),"\n",sep=""))
+,(paste("Rate (per hour) of frequency of phone use while awake = ", round(mle.out[2],5),"\n",sep="")))
 ```
 
-    ##  Avg. time to sleep = 0:57 (+/- 1 hour)
-    ##  Avg. time to wake  = 8:37 (+/- 0.9 hour)
-    ##  Correlation between time to sleep and time to wake = 0.07
-    ##  Rate (per hour) of frequency of phone use while asleep = 1.79099
-    ##  Rate (per hour) of frequency of phone use while awake = 4.92
+    ##  Avg. time to sleep = 2:11 (+/- 0.7 hour)
+    ##  Avg. time to wake  = 9:11 (+/- 1.1 hour)
+    ##  Rate (per hour) of frequency of phone use while asleep = 2.03841
+    ##  Rate (per hour) of frequency of phone use while awake = 5.13881
 
 ### Estimating bed times and wake up times for each day
 
@@ -660,13 +435,13 @@ xest_orig
 ```
 
     ##                bedtime        wake-up time
-    ## 1  03/03/2019 00:40:41 03/03/2019 08:40:16
-    ## 2  03/03/2019 23:54:07 03/04/2019 09:29:56
-    ## 3  03/05/2019 01:52:13 03/05/2019 09:16:16
-    ## 4  03/06/2019 01:03:29 03/06/2019 08:41:22
-    ## 5  03/07/2019 01:55:36 03/07/2019 09:26:56
-    ## 6  03/08/2019 00:31:59 03/08/2019 08:58:11
-    ## 7  03/09/2019 01:29:28 03/09/2019 08:58:06
-    ## 8  03/10/2019 00:41:38 03/10/2019 08:48:27
-    ## 9  03/11/2019 00:19:41 03/11/2019 08:39:54
-    ## 10 03/12/2019 00:57:05 03/12/2019 08:42:14
+    ## 1  03/03/2019 02:19:30 03/03/2019 08:19:05
+    ## 2  03/04/2019 02:41:41 03/04/2019 09:58:43
+    ## 3  03/05/2019 02:27:24 03/05/2019 09:12:13
+    ## 4  03/06/2019 02:46:43 03/06/2019 09:54:30
+    ## 5  03/07/2019 02:33:08 03/07/2019 09:38:47
+    ## 6  03/08/2019 02:10:28 03/08/2019 09:16:08
+    ## 7  03/09/2019 02:16:07 03/09/2019 08:27:13
+    ## 8  03/10/2019 02:36:16 03/10/2019 09:01:55
+    ## 9  03/11/2019 02:30:15 03/11/2019 09:23:05
+    ## 10 03/12/2019 02:20:18 03/12/2019 08:23:15

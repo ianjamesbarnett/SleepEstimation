@@ -180,6 +180,10 @@ d_w_cond_x = function(t_init,wt,xs,xw,lambda_s,lambda_w,mu_s,mu_w){
 
 #par order : lambda_s,lambda_w,mu_s,mu_w,sd_s,sd_w
 QuadratureIntegral = function(mat,cpar,d){
+  if(is.null(mat) || is.na(mat)){return(1)}
+  if(is.numeric(mat)){
+    mat=matrix(mat,nrow=1)
+  }
   n_i=nrow(mat)
   quad_out=trap_quad_points(d)
   lik_wcondx = matrix(NA,nrow=d^2,ncol=n_i)
@@ -195,6 +199,9 @@ QuadratureIntegral = function(mat,cpar,d){
 
 #par order : lambda_s,lambda_w,mu_s,mu_w,sd_s,sd_w
 LogLikelihood =function(dat,cpar,d){
+  if(cpar[5]<=0 || cpar[6]<=0 || mu_w<=mu_s || lambda_s < 0 || lambda_w <0){
+    return(-Inf)
+  }
   labels=unique(dat[,3])
   ls_ids = list()
   for(i in 1:length(labels)){
